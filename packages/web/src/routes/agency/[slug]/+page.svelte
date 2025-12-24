@@ -3,10 +3,34 @@
 </svelte:head>
 
 <script>
+  import { onMount } from "svelte";
+  import { browser } from "$app/environment";
+
   /** @type {import('./$types').PageData} */
   export let data;
 
   const compareStrings = (a, b) => (a === b ? 0 : a < b ? -1 : 1);
+
+  const sortValue = (value) => {
+    if (Array.isArray(value)) {
+      return value.map(sortValue);
+    }
+    if (value && typeof value === "object") {
+      return Object.keys(value)
+        .sort(compareStrings)
+        .reduce((acc, key) => {
+          acc[key] = sortValue(value[key]);
+          return acc;
+        }, {});
+    }
+    return value;
+  };
+
+  const stableStringify = (value) => JSON.stringify(sortValue(value), null, 2);
+
+  let MapLibre;
+  let Marker;
+  let mapReady = false;
 
   let agencyData;
   let metadata;
@@ -16,10 +40,33 @@
   let rows = [];
   let rowsByYear = {};
   let years = [];
+  let center = null;
+
+  const mapStyle = "https://tiles.openfreemap.org/styles/bright";
+  const defaultCenter = [-92.6037607, 38.5767017];
+
+  onMount(async () => {
+    if (!browser) return;
+    const mod = await import("svelte-maplibre-gl");
+    MapLibre = mod.MapLibre;
+    Marker = mod.Marker;
+    mapReady = true;
+  });
 
   $: agencyData = data.data;
   $: metadata = agencyData?.agency_metadata;
   $: ({ geocode_response: geocodeResponse, ...metadataFields } = metadata || {});
+
+  $: {
+    const location = geocodeResponse?.results?.[0]?.location;
+    const lng = location?.lng != null ? Number(location.lng) : null;
+    const lat = location?.lat != null ? Number(location.lat) : null;
+    if (Number.isFinite(lng) && Number.isFinite(lat)) {
+      center = [lng, lat];
+    } else {
+      center = defaultCenter;
+    }
+  }
 
   $: metadataEntries = Object.entries(metadataFields || {}).sort(([keyA], [keyB]) =>
     compareStrings(keyA, keyB)
@@ -104,6 +151,26 @@
     <p class="slug">Slug: {data.slug}</p>
   </header>
 
+  <section class="map-section">
+    <h2>Location</h2>
+    {#if mapReady && MapLibre && center}
+      <div class="map-wrapper">
+        <svelte:component
+          this={MapLibre}
+          class="map"
+          inlineStyle="height: 100%; width: 100%;"
+          style={mapStyle}
+          center={center}
+          zoom={11}
+        >
+          <svelte:component this={Marker} lnglat={center} color="#1d4ed8" />
+        </svelte:component>
+      </div>
+    {:else}
+      <p class="empty">Map loading…</p>
+    {/if}
+  </section>
+
   {#if metadata && metadataEntries.length > 0}
     <section class="meta">
       <h2>Agency metadata</h2>
@@ -124,7 +191,7 @@
       <details class="json-collapsible">
         <summary>View geocode JSON</summary>
         <div class="json">
-          <pre>{JSON.stringify(geocodeResponse, null, 2)}</pre>
+          <pre>{stableStringify(geocodeResponse)}</pre>
         </div>
       </details>
     </section>
@@ -172,7 +239,7 @@
   <details class="json-collapsible">
     <summary>View full JSON</summary>
     <div class="json">
-      <pre>{JSON.stringify(agencyData, null, 2)}</pre>
+      <pre>{stableStringify(agencyData)}</pre>
     </div>
   </details>
 </main>
@@ -221,7 +288,8 @@
   }
 
   .meta,
-  .rows {
+  .rows,
+  .map-section {
     margin-bottom: 2.5rem;
   }
 
@@ -258,6 +326,14 @@
 
   .empty {
     color: #64748b;
+  }
+
+  .map-wrapper {
+    height: 360px;
+    border-radius: 14px;
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+    background: #e2e8f0;
   }
 
   .year-block {
