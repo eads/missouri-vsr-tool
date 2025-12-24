@@ -1,0 +1,10 @@
+node_modules
+.pnpm-debug.log*
+.DS_Store
+.env
+.env.*
+.svelte-kit
+.sst
+build
+dist
+packages/web/static/data/
