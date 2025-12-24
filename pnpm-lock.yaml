@@ -15,6 +15,10 @@ importers:
   packages/services: {}
 
   packages/web:
+    dependencies:
+      quick-score:
+        specifier: ^0.2.0
+        version: 0.2.0
     devDependencies:
       '@sveltejs/kit':
         specifier: ^2.0.0
@@ -775,6 +779,9 @@ packages:
     resolution: {integrity: sha512-X/xY82scca2tau62i9mDyU9K+I+djTMUsvwf7xnUX5GLvVzgJybOJf4Y6o9Zx3oJK/LSXg5tTZBjwzqVPaPO2g==}
     engines: {node: '>=0.4.x'}
     deprecated: The querystring API is considered Legacy. new code should use the URLSearchParams API instead.
+
+  quick-score@0.2.0:
+    resolution: {integrity: sha512-y9PW9rl7BhjTykkGYi4wh0FsXWrWFv3IJVxtAI9FMargSOhqzRN3OjO2itpw63PoSu1FY07i8B2aCwpolQucOQ==}
 
   range-parser@1.2.1:
     resolution: {integrity: sha512-Hrgsx+orqoygnmhFbKaHE6c296J+HTAQXoxEF6gNupROmmGJRoyzfG3ccAveqCBrwr/2yxQ5BVd/GTl5agOwSg==}
@@ -1668,6 +1675,8 @@ snapshots:
       side-channel: 1.1.0
 
   querystring@0.2.0: {}
+
+  quick-score@0.2.0: {}
 
   range-parser@1.2.1: {}
 

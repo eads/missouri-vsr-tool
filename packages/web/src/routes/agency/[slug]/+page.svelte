@@ -6,23 +6,38 @@
   /** @type {import('./$types').PageData} */
   export let data;
 
-  const agencyData = data.data;
-  const metadata = agencyData?.agency_metadata;
-  const { geocode_response: geocodeResponse, ...metadataFields } = metadata || {};
+  const compareStrings = (a, b) => (a === b ? 0 : a < b ? -1 : 1);
 
-  const rows = Array.isArray(agencyData?.rows) ? agencyData.rows : [];
-  const rowsByYear = rows.reduce((acc, row) => {
+  let agencyData;
+  let metadata;
+  let geocodeResponse;
+  let metadataFields = {};
+  let metadataEntries = [];
+  let rows = [];
+  let rowsByYear = {};
+  let years = [];
+
+  $: agencyData = data.data;
+  $: metadata = agencyData?.agency_metadata;
+  $: ({ geocode_response: geocodeResponse, ...metadataFields } = metadata || {});
+
+  $: metadataEntries = Object.entries(metadataFields || {}).sort(([keyA], [keyB]) =>
+    compareStrings(keyA, keyB)
+  );
+
+  $: rows = Array.isArray(agencyData?.rows) ? agencyData.rows : [];
+  $: rowsByYear = rows.reduce((acc, row) => {
     const year = row?.year ?? "Unknown";
     if (!acc[year]) acc[year] = [];
     acc[year].push(row);
     return acc;
   }, {});
 
-  const years = Object.keys(rowsByYear).sort((a, b) => {
+  $: years = Object.keys(rowsByYear).sort((a, b) => {
     const numA = Number(a);
     const numB = Number(b);
     if (Number.isFinite(numA) && Number.isFinite(numB)) return numB - numA;
-    return String(a).localeCompare(String(b));
+    return compareStrings(String(a), String(b));
   });
 
   const formatValue = (value) => {
@@ -49,7 +64,7 @@
         const aPriority = keyA.startsWith(priorityPrefix) ? 0 : 1;
         const bPriority = keyB.startsWith(priorityPrefix) ? 0 : 1;
         if (aPriority !== bPriority) return aPriority - bPriority;
-        return keyA.localeCompare(keyB);
+        return compareStrings(keyA, keyB);
       });
 
   const normalizeMetric = (value) => {
@@ -89,11 +104,11 @@
     <p class="slug">Slug: {data.slug}</p>
   </header>
 
-  {#if metadata && Object.keys(metadataFields).length > 0}
+  {#if metadata && metadataEntries.length > 0}
     <section class="meta">
       <h2>Agency metadata</h2>
       <dl>
-        {#each Object.entries(metadataFields) as [key, value]}
+        {#each metadataEntries as [key, value]}
           <div class="meta-row">
             <dt>{key}</dt>
             <dd>{formatValue(value)}</dd>
