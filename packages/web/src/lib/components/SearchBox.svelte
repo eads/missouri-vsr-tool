@@ -29,6 +29,19 @@
   };
   const toSubLabel = (item) => [item?.city].filter(Boolean).join(" • ");
   const toSlug = (item) => item?.agency_slug || item?.slug || item?.id;
+  const normalizeText = (value) =>
+    (value || "")
+      .toString()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+  const tokensFor = (value) => normalizeText(value).split(" ").filter(Boolean);
+
+  const hasStrongMatch = (item, queryTokens) => {
+    if (!queryTokens.length) return false;
+    const haystack = normalizeText(`${toLabel(item)} ${toSlug(item)}`);
+    return queryTokens.every((token) => haystack.includes(token));
+  };
 
   $: enrichedAgencies = (agencies || []).map((item) => ({
     ...item,
@@ -51,18 +64,65 @@
   }
 
   $: if (query.trim() && scorer) {
-    const scored = scorer.search(query.trim());
-    const reranked = scored
-      .slice(0, 25)
-      .sort((a, b) => {
-        const aStops = toStops(a.item);
-        const bStops = toStops(b.item);
-        const aValue = typeof aStops === "string" ? Number(aStops) : aStops ?? 0;
-        const bValue = typeof bStops === "string" ? Number(bStops) : bStops ?? 0;
-        if (bValue !== aValue) return bValue - aValue;
-        return b.score - a.score;
-      })
-      .slice(0, 10);
+    const trimmedQuery = query.trim();
+    const queryTokens = tokensFor(trimmedQuery);
+    const queryNorm = normalizeText(trimmedQuery);
+    const scored = scorer.search(trimmedQuery).slice(0, 25);
+    const exactMatches = [];
+    const strongMatches = [];
+    const fuzzyMatches = [];
+
+    const stopValueFor = (value) => {
+      const numeric = typeof value === "string" ? Number(value) : value;
+      return Number.isFinite(numeric) ? numeric : 0;
+    };
+
+    const compareStops = (a, b) => {
+      const aValue = stopValueFor(toStops(a.item));
+      const bValue = stopValueFor(toStops(b.item));
+      if (bValue !== aValue) return bValue - aValue;
+      return 0;
+    };
+
+    const compareStrong = (a, b) => {
+      const scoreDiff = b.score - a.score;
+      if (scoreDiff !== 0) return scoreDiff;
+      const stopsDiff = compareStops(a, b);
+      if (stopsDiff !== 0) return stopsDiff;
+      return 0;
+    };
+
+    const compareExact = (a, b) => {
+      const stopsDiff = compareStops(a, b);
+      if (stopsDiff !== 0) return stopsDiff;
+      return b.score - a.score;
+    };
+
+    const compareFuzzy = (a, b) => {
+      const stopsDiff = compareStops(a, b);
+      if (stopsDiff !== 0) return stopsDiff;
+      return b.score - a.score;
+    };
+
+    for (const entry of scored) {
+      const haystack = normalizeText(`${toLabel(entry.item)} ${toSlug(entry.item)}`);
+      const strong = hasStrongMatch(entry.item, queryTokens);
+      const exact = queryNorm.length > 0 && haystack.includes(queryNorm);
+
+      if (strong && exact) {
+        exactMatches.push(entry);
+      } else if (strong) {
+        strongMatches.push(entry);
+      } else {
+        fuzzyMatches.push(entry);
+      }
+    }
+
+    const reranked = [
+      ...exactMatches.sort(compareExact),
+      ...strongMatches.sort(compareStrong),
+      ...fuzzyMatches.sort(compareFuzzy),
+    ].slice(0, 10);
     results = reranked;
   } else {
     results = [];
