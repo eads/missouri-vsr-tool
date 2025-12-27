@@ -3,5 +3,9 @@
   "example_message": "Hello",
   "home_title": "Hello world",
   "home_subtitle": "VSR SvelteKit + SST is live.",
-  "home_note": "A simple demo page for now."
+  "home_note": "A simple demo page for now.",
+  "search_placeholder": "Search agencies",
+  "search_aria_label": "Search agencies",
+  "search_unknown_agency": "Unknown agency",
+  "search_stops_label": "stops"
 }
