@@ -10,5 +10,8 @@
   },
   "devDependencies": {
     "sst": "^3.17.25"
+  },
+  "dependencies": {
+    "layerchart": "^1.0.12"
   }
 }

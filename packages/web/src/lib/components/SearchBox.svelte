@@ -175,7 +175,7 @@
   };
 </script>
 
-<div class="relative w-full md:max-w-[520px]">
+<div class="relative w-full min-w-0 md:max-w-[520px]">
   <input
     type="search"
     placeholder={search_placeholder()}

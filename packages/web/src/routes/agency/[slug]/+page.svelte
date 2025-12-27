@@ -3,8 +3,7 @@
 </svelte:head>
 
 <script>
-  import { onMount } from "svelte";
-  import { browser } from "$app/environment";
+  import AgencyMap from "$lib/components/AgencyMap.svelte";
 
   /** @type {import('./$types').PageData} */
   export let data;
@@ -28,45 +27,23 @@
 
   const stableStringify = (value) => JSON.stringify(sortValue(value), null, 2);
 
-  let MapLibre;
-  let Marker;
-  let mapReady = false;
-
   let agencyData;
   let metadata;
   let geocodeResponse;
+  let geocodeAddressResponse;
   let metadataFields = {};
   let metadataEntries = [];
   let rows = [];
   let rowsByYear = {};
   let years = [];
-  let center = null;
-
-  const mapStyle = "https://tiles.openfreemap.org/styles/bright";
-  const defaultCenter = [-92.6037607, 38.5767017];
-
-  onMount(async () => {
-    if (!browser) return;
-    const mod = await import("svelte-maplibre-gl");
-    MapLibre = mod.MapLibre;
-    Marker = mod.Marker;
-    mapReady = true;
-  });
 
   $: agencyData = data.data;
   $: metadata = agencyData?.agency_metadata;
-  $: ({ geocode_response: geocodeResponse, ...metadataFields } = metadata || {});
-
-  $: {
-    const location = geocodeResponse?.results?.[0]?.location;
-    const lng = location?.lng != null ? Number(location.lng) : null;
-    const lat = location?.lat != null ? Number(location.lat) : null;
-    if (Number.isFinite(lng) && Number.isFinite(lat)) {
-      center = [lng, lat];
-    } else {
-      center = defaultCenter;
-    }
-  }
+  $: ({
+    geocode_response: geocodeResponse,
+    geocode_address_response: geocodeAddressResponse,
+    ...metadataFields
+  } = metadata || {});
 
   $: metadataEntries = Object.entries(metadataFields || {}).sort(([keyA], [keyB]) =>
     compareStrings(keyA, keyB)
@@ -153,24 +130,11 @@
     <p class="mt-2 text-xs font-mono tracking-[0.08em] text-slate-500">Slug: {data.slug}</p>
   </header>
 
-  <section class="mb-10">
-    <h2 class="mb-4 text-xl font-semibold text-slate-900">Location</h2>
-    {#if mapReady && MapLibre && center}
-      <div class="h-[360px] w-full overflow-hidden rounded-2xl border border-slate-200 bg-slate-200">
-        <svelte:component
-          this={MapLibre}
-          class="h-full w-full"
-          style={mapStyle}
-          center={center}
-          zoom={11}
-        >
-          <svelte:component this={Marker} lnglat={center} color="#1d4ed8" />
-        </svelte:component>
-      </div>
-    {:else}
-      <p class="text-sm text-slate-500">Map loading…</p>
-    {/if}
-  </section>
+  <AgencyMap
+    heading="Location"
+    addressResponse={geocodeAddressResponse}
+    fallbackResponse={geocodeResponse}
+  />
 
   {#if metadata && metadataEntries.length > 0}
     <section class="mb-10">
@@ -202,6 +166,20 @@
     </section>
   {/if}
 
+  {#if geocodeAddressResponse}
+    <section class="mb-10">
+      <h2 class="mb-4 text-xl font-semibold text-slate-900">Address geocode response</h2>
+      <details class="rounded-xl border border-slate-200 bg-white p-4">
+        <summary class="cursor-pointer text-sm font-semibold text-slate-900">
+          View address geocode JSON
+        </summary>
+        <div class="mt-3 rounded-xl bg-slate-900 p-4 text-slate-200 shadow-lg">
+          <pre class="whitespace-pre-wrap break-words text-xs leading-relaxed font-mono">{stableStringify(geocodeAddressResponse)}</pre>
+        </div>
+      </details>
+    </section>
+  {/if}
+
   <section class="mb-10">
     <h2 class="mb-4 text-xl font-semibold text-slate-900">Yearly data</h2>
     {#if years.length === 0}
@@ -210,7 +188,7 @@
       {#each years as year}
         <article class="relative mb-8">
           <h3
-            class="sticky top-0 z-20 flex h-11 w-full items-center border-b border-slate-200 bg-slate-50 px-3 text-base font-semibold text-slate-900"
+            class="sticky top-[var(--site-header-height)] z-20 flex h-7 w-full items-center border-b border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-900"
           >
             {year}
           </h3>
@@ -222,13 +200,13 @@
               <thead class="bg-slate-100">
                 <tr>
                   <th
-                    class="sticky top-11 z-10 bg-slate-100 px-4 py-3 text-left text-sm font-semibold text-slate-700"
+                    class="sticky top-[calc(var(--site-header-height)+var(--year-header-height))] z-10 bg-slate-100 px-4 py-2 text-left text-sm font-semibold text-slate-700"
                   >
                     Metric
                   </th>
                   {#each columnLabels as label}
                     <th
-                      class="sticky top-11 z-10 bg-slate-100 px-4 py-3 text-left text-sm font-semibold text-slate-700"
+                      class="sticky top-[calc(var(--site-header-height)+var(--year-header-height))] z-10 bg-slate-100 px-4 py-2 text-left text-sm font-semibold text-slate-700"
                     >
                       {label}
                     </th>

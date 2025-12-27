@@ -2,7 +2,18 @@
 @import "tailwindcss";
 
 @layer base {
+  :root {
+    --site-header-height: 3.5rem;
+    --year-header-height: 1.75rem;
+  }
+
   body {
     @apply bg-slate-50 font-sans text-slate-900 antialiased;
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --site-header-height: 3.5rem;
   }
 }
