@@ -1,3 +1,7 @@
+<script>
+  import * as m from "$lib/paraglide/messages"
+</script>
+
 <svelte:head>
   <title>VSR Hello</title>
 </svelte:head>
@@ -5,6 +9,7 @@
 <main>
   <h1>Hello world</h1>
   <p>VSR SvelteKit + SST is live.</p>
+  <p>{m.example_message()}</p>
 </main>
 
 <style>
