@@ -1,4 +1,7 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
-  "example_message": "Hello"
+  "example_message": "Hello",
+  "home_title": "Hello world",
+  "home_subtitle": "VSR SvelteKit + SST is live.",
+  "home_note": "A simple demo page for now."
 }

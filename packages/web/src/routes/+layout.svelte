@@ -1,8 +1,9 @@
 <script>
   import "../app.css";
   import { goto } from "$app/navigation";
+  import { page } from "$app/stores";
   import { QuickScore } from "quick-score";
-  import { baseLocale, getLocale, locales, setLocale } from "$lib/paraglide/runtime";
+  import { baseLocale, getLocale, locales, localizeHref } from "$lib/paraglide/runtime";
 
   export let data;
 
@@ -11,8 +12,18 @@
   let selectedIndex = -1;
   let previousQuery = "";
   let currentLocale = baseLocale;
+  let currentPath = "/";
 
-  $: currentLocale = getLocale();
+  const readLocale = () => {
+    try {
+      return getLocale();
+    } catch {
+      return baseLocale;
+    }
+  };
+
+  $: currentLocale = readLocale();
+  $: currentPath = `${$page.url.pathname}${$page.url.search}${$page.url.hash}`;
 
   const toLabel = (item) =>
     item?.canonical_name || item?.names?.[0] || item?.agency_slug || "Unknown agency";
@@ -110,7 +121,10 @@
   const handleLocaleChange = (event) => {
     const nextLocale = event?.currentTarget?.value;
     if (!nextLocale || nextLocale === currentLocale) return;
-    setLocale(nextLocale);
+    const href = localizeHref(currentPath, { locale: nextLocale });
+    goto(href).catch(() => {
+      window.location.href = href;
+    });
   };
 </script>
 
@@ -123,7 +137,7 @@
     <select
       id="language-switcher"
       class="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold uppercase tracking-wide text-slate-700 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
-      bind:value={currentLocale}
+      value={currentLocale}
       on:change={handleLocaleChange}
     >
       {#each locales as locale}
