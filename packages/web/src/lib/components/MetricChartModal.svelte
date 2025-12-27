@@ -8,6 +8,8 @@
   export let metricLabel = "";
   export let rows = [];
   export let raceKeys = [];
+  export let baselines = [];
+  export let agencyName = "";
 
   const dispatch = createEventDispatcher();
   let backdropEl;
@@ -60,6 +62,57 @@
     value: barTotals[year] ?? 0,
   }));
 
+  const formatNumber = (value) => {
+    if (value === null || value === undefined) return "—";
+    if (typeof value !== "number" || !Number.isFinite(value)) return String(value);
+    if (Number.isInteger(value)) return String(value);
+    return value.toFixed(2).replace(/\.?0+$/, "");
+  };
+
+  const baselineRaceOrder = ["White", "Black", "Hispanic", "Asian", "Other", "Native American"];
+
+  $: baselineEntries = Array.isArray(baselines)
+    ? baselines.filter((entry) => entry?.slug === metricKey)
+    : [];
+
+  $: baselineYears = Array.from(new Set(baselineEntries.map((entry) => entry.year))).sort(
+    (a, b) => Number(b) - Number(a)
+  );
+
+  $: baselineByYear = baselineEntries.reduce((acc, entry) => {
+    const year = entry.year;
+    if (year === null || year === undefined) return acc;
+    if (!acc[year]) acc[year] = [];
+    acc[year].push(entry);
+    return acc;
+  }, {});
+
+  $: agencyTotalsByYear = rows.reduce((acc, row) => {
+    const year = row?.year;
+    if (!year) return acc;
+    const metric = row?.[metricKey];
+    if (!metric || typeof metric !== "object" || Array.isArray(metric)) return acc;
+    if (!acc[year]) acc[year] = {};
+    baselineRaceOrder.forEach((race) => {
+      const lower = race.toLowerCase();
+      const value = metric[race] ?? metric[lower];
+      if (value === null || value === undefined) return;
+      acc[year][race] = (acc[year][race] ?? 0) + toNumber(value);
+    });
+    return acc;
+  }, {});
+
+  const sortBaselineMetrics = (a, b) => {
+    const orderA = baselineRaceOrder.indexOf(a.metric);
+    const orderB = baselineRaceOrder.indexOf(b.metric);
+    if (orderA !== -1 || orderB !== -1) {
+      if (orderA === -1) return 1;
+      if (orderB === -1) return -1;
+      return orderA - orderB;
+    }
+    return String(a.metric).localeCompare(String(b.metric));
+  };
+
   const handleBackdrop = (event) => {
     if (event.target === event.currentTarget) {
       dispatch("close");
@@ -100,7 +153,7 @@
     on:keydown={handleKeydown}
     tabindex="0"
   >
-    <div class="w-full max-w-full rounded-none bg-white p-4 shadow-2xl sm:max-w-4xl sm:rounded-2xl sm:p-6">
+    <div class="w-full max-w-full rounded-none bg-white p-4 shadow-2xl sm:max-w-4xl sm:rounded-2xl sm:p-6 max-h-[100svh] overflow-y-auto overflow-x-hidden sm:max-h-[90vh]">
       <div class="flex items-start justify-between gap-4">
         <div>
           <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Metric</p>
@@ -130,7 +183,7 @@
                 y="value"
                 yDomain={[0, null]}
                 yNice={4}
-                padding={{ left: 28, right: 12, bottom: 24, top: 8 }}
+                padding={{ left: 56, right: 12, bottom: 24, top: 8 }}
               >
                 <Svg>
                   <Axis
@@ -138,11 +191,12 @@
                     grid={{ class: "stroke-slate-200/70" }}
                     rule={{ class: "stroke-slate-300" }}
                     tickLength={3}
+                    ticks={4}
                     tickLabelProps={{
-                      class: "text-[9px] font-medium",
-                      fill: "#64748b",
+                      fill: "#0f172a",
                       stroke: "none",
                       strokeWidth: 0,
+                      style: "font-size: 11px; font-weight: 600;",
                     }}
                   />
                   <Axis
@@ -150,10 +204,10 @@
                     rule={{ class: "stroke-slate-300" }}
                     tickLength={3}
                     tickLabelProps={{
-                      class: "text-[9px] font-medium",
                       fill: "#64748b",
                       stroke: "none",
                       strokeWidth: 0,
+                      style: "font-size: 10px; font-weight: 500;",
                     }}
                   />
                   <Bars strokeWidth={1} fill="#cbd5e1" />
@@ -164,6 +218,53 @@
           {/if}
         {:else}
           <p class="text-sm text-slate-500">Chart type not available yet.</p>
+        {/if}
+      </div>
+
+      <div class="mt-6 rounded-xl border border-slate-200 bg-white p-4">
+        <div class="flex items-baseline justify-between gap-4">
+          <h3 class="text-sm font-semibold text-slate-900">Statewide baselines</h3>
+          <p class="text-xs text-slate-400">Mean / median (no MSHP) by race</p>
+        </div>
+        {#if baselineYears.length === 0}
+          <p class="mt-3 text-sm text-slate-500">No statewide baselines for this metric.</p>
+        {:else}
+          <div class="mt-3 space-y-4">
+            {#each baselineYears as year}
+              {@const yearEntries = (baselineByYear[year] ?? []).slice().sort(sortBaselineMetrics)}
+              <div class="rounded-lg border border-slate-200">
+                <div class="border-b border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600">
+                  {year}
+                </div>
+                <div class="overflow-x-auto">
+                  <table class="min-w-full table-auto border-separate border-spacing-0 text-xs text-slate-600">
+                    <thead class="bg-white text-[11px] uppercase tracking-wide text-slate-400">
+                      <tr>
+                        <th class="px-3 py-2 text-left font-semibold">Race</th>
+                        <th class="px-3 py-2 text-left font-semibold">
+                          {agencyName || "Agency"}
+                        </th>
+                        <th class="px-3 py-2 text-left font-semibold">Mean</th>
+                        <th class="px-3 py-2 text-left font-semibold">Median</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                      {#each yearEntries as entry}
+                        <tr>
+                          <td class="px-3 py-2 font-medium text-slate-700">{entry.metric}</td>
+                          <td class="px-3 py-2">
+                            {formatNumber(agencyTotalsByYear[year]?.[entry.metric])}
+                          </td>
+                          <td class="px-3 py-2">{formatNumber(entry.mean__no_mshp)}</td>
+                          <td class="px-3 py-2">{formatNumber(entry.median__no_mshp)}</td>
+                        </tr>
+                      {/each}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            {/each}
+          </div>
         {/if}
       </div>
     </div>

@@ -35,12 +35,14 @@
   let geocodeJurisdictionResponse;
   let metadataFields = {};
   let metadataEntries = [];
+  let baselines = [];
   let rows = [];
   let rowsByYear = {};
   let years = [];
   let geocodeBlocks = [];
 
   $: agencyData = data.data;
+  $: baselines = Array.isArray(data.baselines) ? data.baselines : [];
   $: metadata = agencyData?.agency_metadata;
   $: ({
     geocode_address_response: geocodeAddressResponse,
@@ -249,7 +251,7 @@
       {#each years as year}
         <article class="relative mb-8">
           <h3
-            class="sticky top-[var(--site-header-height)] z-20 flex h-7 w-full items-center border-b border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-900"
+            class="flex h-7 w-full items-center border-b border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-900"
           >
             {year}
           </h3>
@@ -259,9 +261,7 @@
             {/if}
             <div class="mb-6 max-w-full overflow-x-auto overflow-y-visible rounded-xl border border-slate-200 bg-white">
               <table class="min-w-full table-auto border-separate border-spacing-0">
-                <thead
-                  class="sticky top-[calc(var(--site-header-height)+var(--year-header-height))] z-10 bg-slate-100"
-                >
+                <thead class="bg-slate-100">
                   <tr>
                     <th
                       class="bg-slate-100 px-2 py-2 text-left text-xs font-semibold text-slate-700 sm:px-4 sm:text-sm"
@@ -324,5 +324,7 @@
   metricLabel={activeMetricLabel}
   rows={rows}
   raceKeys={chartRaceKeys}
+  baselines={baselines}
+  agencyName={agencyData?.agency ?? data.slug}
   on:close={closeMetric}
 />
