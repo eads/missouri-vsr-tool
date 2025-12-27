@@ -4,6 +4,8 @@
 
 <script>
   import AgencyMap from "$lib/components/AgencyMap.svelte";
+  import MetricChartModal from "$lib/components/MetricChartModal.svelte";
+  import { onMount } from "svelte";
 
   /** @type {import('./$types').PageData} */
   export let data;
@@ -29,21 +31,27 @@
 
   let agencyData;
   let metadata;
-  let geocodeResponse;
   let geocodeAddressResponse;
+  let geocodeJurisdictionResponse;
   let metadataFields = {};
   let metadataEntries = [];
   let rows = [];
   let rowsByYear = {};
   let years = [];
+  let geocodeBlocks = [];
 
   $: agencyData = data.data;
   $: metadata = agencyData?.agency_metadata;
   $: ({
-    geocode_response: geocodeResponse,
     geocode_address_response: geocodeAddressResponse,
+    geocode_jurisdiction_response: geocodeJurisdictionResponse,
     ...metadataFields
   } = metadata || {});
+
+  $: geocodeBlocks = [
+    { label: "Address geocode response", data: geocodeAddressResponse },
+    { label: "Jurisdiction geocode response", data: geocodeJurisdictionResponse },
+  ].filter((entry) => entry.data);
 
   $: metadataEntries = Object.entries(metadataFields || {}).sort(([keyA], [keyB]) =>
     compareStrings(keyA, keyB)
@@ -79,6 +87,7 @@
   };
 
   const columnLabels = ["Total", "White", "Black", "Hispanic", "Asian", "Other"];
+  const chartRaceKeys = columnLabels.filter((label) => label !== "Total");
   const priorityPrefix = "rates--totals-";
 
   const getSortedEntries = (entry) =>
@@ -119,6 +128,76 @@
       Other: formatValue(record.Other ?? record.other),
     };
   };
+
+  let activeMetricKey = "";
+  let activeMetricLabel = "";
+
+  const hasMetricKey = (metricKey) =>
+    rows.some((row) => row && Object.prototype.hasOwnProperty.call(row, metricKey));
+
+  const setHash = (metricKey) => {
+    if (typeof window === "undefined") return;
+    if (!metricKey) return;
+    const encoded = encodeURIComponent(metricKey);
+    if (window.location.hash === `#${encoded}`) return;
+    window.location.hash = encoded;
+  };
+
+  const clearHash = () => {
+    if (typeof window === "undefined") return;
+    const { pathname, search } = window.location;
+    window.history.replaceState(null, "", `${pathname}${search}`);
+  };
+
+  const openMetric = (metricKey, { updateHash = true } = {}) => {
+    if (!metricKey) return;
+    activeMetricKey = metricKey;
+    activeMetricLabel = metricKey;
+    if (updateHash) {
+      setHash(metricKey);
+    }
+  };
+
+  const closeMetric = ({ updateHash = true } = {}) => {
+    activeMetricKey = "";
+    activeMetricLabel = "";
+    if (updateHash) {
+      clearHash();
+    }
+  };
+
+  const handleRowKeydown = (event, metricKey) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openMetric(metricKey);
+    }
+  };
+
+  const getHashMetric = () => {
+    if (typeof window === "undefined") return "";
+    const raw = window.location.hash.replace(/^#/, "");
+    return raw ? decodeURIComponent(raw) : "";
+  };
+
+  const syncFromHash = () => {
+    const metricKey = getHashMetric();
+    if (metricKey && hasMetricKey(metricKey)) {
+      openMetric(metricKey, { updateHash: false });
+    } else if (!metricKey && activeMetricKey) {
+      closeMetric({ updateHash: false });
+    }
+  };
+
+  onMount(() => {
+    syncFromHash();
+    const handleHashChange = () => syncFromHash();
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  });
+
+  $: if (typeof window !== "undefined" && rows.length) {
+    syncFromHash();
+  }
 </script>
 
 <main class="mx-auto w-full max-w-5xl px-4 pb-16 pt-12 sm:px-6">
@@ -130,11 +209,7 @@
     <p class="mt-2 text-xs font-mono tracking-[0.08em] text-slate-500">Slug: {data.slug}</p>
   </header>
 
-  <AgencyMap
-    heading="Location"
-    addressResponse={geocodeAddressResponse}
-    fallbackResponse={geocodeResponse}
-  />
+  <AgencyMap heading="Location" addressResponse={geocodeAddressResponse} />
 
   {#if metadata && metadataEntries.length > 0}
     <section class="mb-10">
@@ -152,33 +227,19 @@
     </section>
   {/if}
 
-  {#if geocodeResponse}
+  {#each geocodeBlocks as block}
     <section class="mb-10">
-      <h2 class="mb-4 text-xl font-semibold text-slate-900">Geocode response</h2>
+      <h2 class="mb-4 text-xl font-semibold text-slate-900">{block.label}</h2>
       <details class="rounded-xl border border-slate-200 bg-white p-4">
         <summary class="cursor-pointer text-sm font-semibold text-slate-900">
           View geocode JSON
         </summary>
         <div class="mt-3 rounded-xl bg-slate-900 p-4 text-slate-200 shadow-lg">
-          <pre class="whitespace-pre-wrap break-words text-xs leading-relaxed font-mono">{stableStringify(geocodeResponse)}</pre>
+          <pre class="whitespace-pre-wrap break-words text-xs leading-relaxed font-mono">{stableStringify(block.data)}</pre>
         </div>
       </details>
     </section>
-  {/if}
-
-  {#if geocodeAddressResponse}
-    <section class="mb-10">
-      <h2 class="mb-4 text-xl font-semibold text-slate-900">Address geocode response</h2>
-      <details class="rounded-xl border border-slate-200 bg-white p-4">
-        <summary class="cursor-pointer text-sm font-semibold text-slate-900">
-          View address geocode JSON
-        </summary>
-        <div class="mt-3 rounded-xl bg-slate-900 p-4 text-slate-200 shadow-lg">
-          <pre class="whitespace-pre-wrap break-words text-xs leading-relaxed font-mono">{stableStringify(geocodeAddressResponse)}</pre>
-        </div>
-      </details>
-    </section>
-  {/if}
+  {/each}
 
   <section class="mb-10">
     <h2 class="mb-4 text-xl font-semibold text-slate-900">Yearly data</h2>
@@ -196,37 +257,53 @@
             {#if rowsByYear[year].length > 1}
               <p class="mb-2 mt-4 text-sm text-slate-500">Entry {entryIndex + 1}</p>
             {/if}
-            <table class="mb-6 w-full table-auto border-separate border-spacing-0 rounded-xl border border-slate-200 bg-white">
-              <thead class="bg-slate-100">
-                <tr>
-                  <th
-                    class="sticky top-[calc(var(--site-header-height)+var(--year-header-height))] z-10 bg-slate-100 px-4 py-2 text-left text-sm font-semibold text-slate-700"
-                  >
-                    Metric
-                  </th>
-                  {#each columnLabels as label}
-                    <th
-                      class="sticky top-[calc(var(--site-header-height)+var(--year-header-height))] z-10 bg-slate-100 px-4 py-2 text-left text-sm font-semibold text-slate-700"
-                    >
-                      {label}
-                    </th>
-                  {/each}
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-slate-200">
-                {#each getSortedEntries(entry) as [key, value]}
-                  {@const columns = normalizeMetric(value)}
+            <div class="mb-6 max-w-full overflow-x-auto overflow-y-visible rounded-xl border border-slate-200 bg-white">
+              <table class="min-w-full table-auto border-separate border-spacing-0">
+                <thead
+                  class="sticky top-[calc(var(--site-header-height)+var(--year-header-height))] z-10 bg-slate-100"
+                >
                   <tr>
-                    <td class="px-4 py-3 text-sm font-medium text-slate-700">{key}</td>
+                    <th
+                      class="bg-slate-100 px-2 py-2 text-left text-xs font-semibold text-slate-700 sm:px-4 sm:text-sm"
+                    >
+                      Metric
+                    </th>
                     {#each columnLabels as label}
-                      <td class="px-4 py-3 text-base font-mono text-slate-900 tabular-nums whitespace-nowrap">
-                        {columns[label]}
-                      </td>
+                      <th
+                        class="bg-slate-100 px-2 py-2 text-left text-xs font-semibold text-slate-700 sm:px-4 sm:text-sm"
+                      >
+                        {label}
+                      </th>
                     {/each}
                   </tr>
-                {/each}
-              </tbody>
-            </table>
+                </thead>
+                <tbody class="divide-y divide-slate-200">
+                  {#each getSortedEntries(entry) as [key, value]}
+                    {@const columns = normalizeMetric(value)}
+                    <tr
+                      class="cursor-pointer hover:bg-slate-50"
+                      role="button"
+                      tabindex="0"
+                      on:click={() => openMetric(key)}
+                      on:keydown={(event) => handleRowKeydown(event, key)}
+                    >
+                      <td
+                        class="px-2 py-2 text-xs font-medium text-slate-700 sm:px-4 sm:py-3 sm:text-sm whitespace-normal break-words leading-tight"
+                      >
+                        {key}
+                      </td>
+                      {#each columnLabels as label}
+                        <td
+                          class="px-2 py-2 text-sm font-mono text-slate-900 tabular-nums whitespace-nowrap sm:px-4 sm:py-3 sm:text-base"
+                        >
+                          {columns[label]}
+                        </td>
+                      {/each}
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+            </div>
           {/each}
         </article>
       {/each}
@@ -240,3 +317,12 @@
     </div>
   </details>
 </main>
+
+<MetricChartModal
+  open={Boolean(activeMetricKey)}
+  metricKey={activeMetricKey}
+  metricLabel={activeMetricLabel}
+  rows={rows}
+  raceKeys={chartRaceKeys}
+  on:close={closeMetric}
+/>

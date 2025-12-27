@@ -34,4 +34,10 @@ export default defineConfig({
       plugins: [tailwindcss(), autoprefixer()],
     },
   },
+  optimizeDeps: {
+    include: ["layerchart", "layercake"],
+  },
+  ssr: {
+    noExternal: ["layerchart", "layercake"],
+  },
 });

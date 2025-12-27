@@ -45,7 +45,7 @@
         class="h-full w-full"
         style={mapStyle}
         center={center}
-        zoom={11}
+        zoom={14}
       >
         <svelte:component this={Marker} lnglat={center} color="#1d4ed8" />
       </svelte:component>

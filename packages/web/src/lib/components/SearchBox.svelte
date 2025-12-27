@@ -195,7 +195,7 @@
         {@const slug = toSlug(result.item)}
         {@const href = slug ? `/agency/${slug}` : "#"}
         {@const stops = formatStops(toStops(result.item))}
-        <li role="option">
+        <li role="option" aria-selected={index === selectedIndex}>
           <a
             href={href}
             on:click={slug ? resetSearch : undefined}
