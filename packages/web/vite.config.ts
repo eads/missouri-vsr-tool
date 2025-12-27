@@ -1,6 +1,8 @@
 import { sveltekit } from "@sveltejs/kit/vite";
 import { defineConfig } from "vite";
-import { paraglideVitePlugin } from '@inlang/paraglide-js';
+import { paraglideVitePlugin } from "@inlang/paraglide-js";
+import tailwindcss from "@tailwindcss/postcss";
+import autoprefixer from "autoprefixer";
 
 export default defineConfig({
   plugins: [
@@ -28,5 +30,10 @@ export default defineConfig({
 
 
       })
-  ]
+  ],
+  css: {
+    postcss: {
+      plugins: [tailwindcss(), autoprefixer()],
+    },
+  },
 });

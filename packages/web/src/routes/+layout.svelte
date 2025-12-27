@@ -1,6 +1,8 @@
 <script>
+  import "../app.css";
   import { goto } from "$app/navigation";
   import { QuickScore } from "quick-score";
+  import { baseLocale, getLocale, locales, setLocale } from "$lib/paraglide/runtime";
 
   export let data;
 
@@ -8,6 +10,9 @@
   let results = [];
   let selectedIndex = -1;
   let previousQuery = "";
+  let currentLocale = baseLocale;
+
+  $: currentLocale = getLocale();
 
   const toLabel = (item) =>
     item?.canonical_name || item?.names?.[0] || item?.agency_slug || "Unknown agency";
@@ -101,13 +106,32 @@
       selectedIndex = -1;
     }
   };
+
+  const handleLocaleChange = (event) => {
+    const nextLocale = event?.currentTarget?.value;
+    if (!nextLocale || nextLocale === currentLocale) return;
+    setLocale(nextLocale);
+  };
 </script>
 
-<header class="site-header">
-  <div class="brand">
-    <a href="/">VSR</a>
+<header
+  class="sticky top-0 z-20 flex flex-col gap-3 border-b border-slate-200 bg-slate-50/95 px-6 py-3 backdrop-blur md:flex-row md:items-center md:justify-between"
+>
+  <div class="flex items-center gap-3">
+    <a href="/" class="text-lg font-semibold tracking-tight text-slate-900 no-underline">VSR</a>
+    <label class="sr-only" for="language-switcher">Language</label>
+    <select
+      id="language-switcher"
+      class="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold uppercase tracking-wide text-slate-700 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+      bind:value={currentLocale}
+      on:change={handleLocaleChange}
+    >
+      {#each locales as locale}
+        <option value={locale}>{locale}</option>
+      {/each}
+    </select>
   </div>
-  <div class="search">
+  <div class="relative w-full md:max-w-[520px]">
     <input
       type="search"
       placeholder="Search agencies"
@@ -116,27 +140,35 @@
       aria-label="Search agencies"
       autocomplete="off"
       spellcheck="false"
+      class="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
     />
     {#if results.length}
-      <ul class="results" role="listbox">
+      <ul
+        class="absolute left-0 right-0 top-full z-20 mt-2 max-h-80 list-none overflow-y-auto rounded-xl border border-slate-200 bg-white py-2 shadow-xl"
+        role="listbox"
+      >
         {#each results as result, index}
           {@const slug = toSlug(result.item)}
           {@const href = slug ? `/agency/${slug}` : "#"}
           {@const stops = formatStops(toStops(result.item))}
-          <li
-            class:selected={index === selectedIndex}
-            role="option"
-          >
-            <a href={href} on:click={slug ? resetSearch : undefined} aria-disabled={!slug}>
-              <span class="label">{toLabel(result.item)}</span>
+          <li role="option">
+            <a
+              href={href}
+              on:click={slug ? resetSearch : undefined}
+              aria-disabled={!slug}
+              class={`flex flex-col gap-1 px-4 py-2 text-sm text-slate-900 no-underline hover:bg-indigo-100 ${
+                index === selectedIndex ? "bg-indigo-100" : ""
+              }`}
+            >
+              <span class="font-semibold text-slate-900">{toLabel(result.item)}</span>
               {#if stops || toSubLabel(result.item)}
-                <span class="meta-row">
+                <span class="flex items-center gap-2 text-xs text-slate-500">
                   {#if stops}
-                    <span class="meta stops">{stops} stops</span>
+                    <span class="font-semibold text-slate-800">{stops} stops</span>
                   {/if}
                   {#if toSubLabel(result.item)}
-                    <span class="meta dot">•</span>
-                    <span class="meta">{toSubLabel(result.item)}</span>
+                    <span class="opacity-60">•</span>
+                    <span>{toSubLabel(result.item)}</span>
                   {/if}
                 </span>
               {/if}
@@ -149,116 +181,3 @@
 </header>
 
 <slot />
-
-<style>
-  .site-header {
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    display: flex;
-    gap: 1.5rem;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0.75rem 1.5rem;
-    background: rgba(248, 250, 252, 0.95);
-    backdrop-filter: blur(10px);
-    border-bottom: 1px solid #e2e8f0;
-  }
-
-  .brand a {
-    text-decoration: none;
-    color: #0f172a;
-    font-weight: 600;
-    letter-spacing: -0.02em;
-  }
-
-  .search {
-    position: relative;
-    width: min(520px, 100%);
-  }
-
-  input {
-    width: 100%;
-    padding: 0.6rem 0.9rem;
-    border: 1px solid #cbd5f5;
-    border-radius: 12px;
-    font-size: 0.95rem;
-    background: #ffffff;
-    color: #0f172a;
-  }
-
-  input:focus {
-    outline: 2px solid #1d4ed8;
-    outline-offset: 2px;
-  }
-
-  .results {
-    position: absolute;
-    top: calc(100% + 0.35rem);
-    left: 0;
-    right: 0;
-    background: #ffffff;
-    border-radius: 12px;
-    border: 1px solid #e2e8f0;
-    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.15);
-    padding: 0.5rem 0;
-    margin: 0;
-    list-style: none;
-    max-height: 320px;
-    overflow-y: auto;
-  }
-
-  .results li {
-    padding: 0;
-  }
-
-  .results li:hover a,
-  .results li.selected a {
-    background: #e0e7ff;
-  }
-
-  .results a {
-    display: flex;
-    flex-direction: column;
-    padding: 0.55rem 0.9rem;
-    gap: 0.15rem;
-    color: inherit;
-    text-decoration: none;
-  }
-
-  .label {
-    font-weight: 600;
-    color: #0f172a;
-  }
-
-  .meta {
-    font-size: 0.75rem;
-    color: #64748b;
-  }
-
-  .meta-row {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-  }
-
-  .dot {
-    opacity: 0.6;
-  }
-
-  .stops {
-    font-weight: 600;
-    color: #1e293b;
-  }
-
-  @media (max-width: 700px) {
-    .site-header {
-      flex-direction: column;
-      align-items: stretch;
-    }
-
-    .search {
-      width: 100%;
-    }
-  }
-</style>
