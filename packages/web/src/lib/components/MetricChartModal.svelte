@@ -2,6 +2,25 @@
   import { createEventDispatcher, onDestroy } from "svelte";
   import { Chart, Svg, Axis, Bars, Highlight } from "layerchart";
   import { scaleBand } from "d3-scale";
+  import {
+    modal_baseline_agency_fallback,
+    modal_baseline_mean_header,
+    modal_baseline_median_header,
+    modal_baseline_race_header,
+    modal_chart_unavailable,
+    modal_close,
+    modal_metric_label,
+    modal_no_baselines,
+    modal_no_data,
+    modal_statewide_baselines_heading,
+    modal_statewide_baselines_subheading,
+    race_asian,
+    race_black,
+    race_hispanic,
+    race_native_american,
+    race_other,
+    race_white,
+  } from "$lib/paraglide/messages";
 
   export let open = false;
   export let metricKey = "";
@@ -70,6 +89,25 @@
   };
 
   const baselineRaceOrder = ["White", "Black", "Hispanic", "Asian", "Other", "Native American"];
+
+  const raceLabel = (key) => {
+    switch (key) {
+      case "White":
+        return race_white();
+      case "Black":
+        return race_black();
+      case "Hispanic":
+        return race_hispanic();
+      case "Asian":
+        return race_asian();
+      case "Other":
+        return race_other();
+      case "Native American":
+        return race_native_american();
+      default:
+        return key;
+    }
+  };
 
   $: baselineEntries = Array.isArray(baselines)
     ? baselines.filter((entry) => entry?.slug === metricKey)
@@ -156,7 +194,9 @@
     <div class="w-full max-w-full rounded-none bg-white p-4 shadow-2xl sm:max-w-4xl sm:rounded-2xl sm:p-6 max-h-[100svh] overflow-y-auto overflow-x-hidden sm:max-h-[90vh]">
       <div class="flex items-start justify-between gap-4">
         <div>
-          <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Metric</p>
+          <p class="text-xs uppercase tracking-[0.2em] text-slate-500">
+            {modal_metric_label()}
+          </p>
           <h2 class="mt-2 text-xl font-semibold text-slate-900">
             {metricLabel || metricKey}
           </h2>
@@ -166,14 +206,14 @@
           type="button"
           on:click={() => dispatch("close")}
         >
-          Close
+          {modal_close()}
         </button>
       </div>
 
       <div class="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
         {#if chartType === "bar"}
           {#if barData.length === 0}
-            <p class="text-sm text-slate-500">No data available for this metric.</p>
+            <p class="text-sm text-slate-500">{modal_no_data()}</p>
           {:else}
             <div class="h-[280px]">
               <Chart
@@ -217,17 +257,19 @@
             </div>
           {/if}
         {:else}
-          <p class="text-sm text-slate-500">Chart type not available yet.</p>
+          <p class="text-sm text-slate-500">{modal_chart_unavailable()}</p>
         {/if}
       </div>
 
       <div class="mt-6 rounded-xl border border-slate-200 bg-white p-4">
         <div class="flex items-baseline justify-between gap-4">
-          <h3 class="text-sm font-semibold text-slate-900">Statewide baselines</h3>
-          <p class="text-xs text-slate-400">Mean / median (no MSHP) by race</p>
+          <h3 class="text-sm font-semibold text-slate-900">
+            {modal_statewide_baselines_heading()}
+          </h3>
+          <p class="text-xs text-slate-400">{modal_statewide_baselines_subheading()}</p>
         </div>
         {#if baselineYears.length === 0}
-          <p class="mt-3 text-sm text-slate-500">No statewide baselines for this metric.</p>
+          <p class="mt-3 text-sm text-slate-500">{modal_no_baselines()}</p>
         {:else}
           <div class="mt-3 space-y-4">
             {#each baselineYears as year}
@@ -240,18 +282,26 @@
                   <table class="min-w-full table-auto border-separate border-spacing-0 text-xs text-slate-600">
                     <thead class="bg-white text-[11px] uppercase tracking-wide text-slate-400">
                       <tr>
-                        <th class="px-3 py-2 text-left font-semibold">Race</th>
                         <th class="px-3 py-2 text-left font-semibold">
-                          {agencyName || "Agency"}
+                          {modal_baseline_race_header()}
                         </th>
-                        <th class="px-3 py-2 text-left font-semibold">Mean</th>
-                        <th class="px-3 py-2 text-left font-semibold">Median</th>
+                        <th class="px-3 py-2 text-left font-semibold">
+                          {agencyName || modal_baseline_agency_fallback()}
+                        </th>
+                        <th class="px-3 py-2 text-left font-semibold">
+                          {modal_baseline_mean_header()}
+                        </th>
+                        <th class="px-3 py-2 text-left font-semibold">
+                          {modal_baseline_median_header()}
+                        </th>
                       </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
                       {#each yearEntries as entry}
                         <tr>
-                          <td class="px-3 py-2 font-medium text-slate-700">{entry.metric}</td>
+                          <td class="px-3 py-2 font-medium text-slate-700">
+                            {raceLabel(entry.metric)}
+                          </td>
                           <td class="px-3 py-2">
                             {formatNumber(agencyTotalsByYear[year]?.[entry.metric])}
                           </td>

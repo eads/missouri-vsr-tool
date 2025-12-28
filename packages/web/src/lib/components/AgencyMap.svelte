@@ -5,6 +5,7 @@
   export let addressResponse = null;
   export let fallbackResponse = null;
   export let heading = "Location";
+  export let loadingLabel = "Map loading…";
 
   let MapLibre;
   let Marker;
@@ -51,6 +52,6 @@
       </svelte:component>
     </div>
   {:else}
-    <p class="text-sm text-slate-500">Map loading…</p>
+    <p class="text-sm text-slate-500">{loadingLabel}</p>
   {/if}
 </section>

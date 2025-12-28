@@ -1,11 +1,31 @@
 <svelte:head>
-  <title>{data.data?.agency ?? data.slug} | Agency</title>
+  <title>{data.data?.agency ?? data.slug} | {agency_title_suffix()}</title>
 </svelte:head>
 
 <script>
   import AgencyMap from "$lib/components/AgencyMap.svelte";
   import MetricChartModal from "$lib/components/MetricChartModal.svelte";
   import { onMount } from "svelte";
+  import {
+    agency_entry_label,
+    agency_geocode_summary,
+    agency_location_heading,
+    agency_map_loading,
+    agency_metadata_heading,
+    agency_metric_header,
+    agency_no_rows,
+    agency_preview_label,
+    agency_slug_label,
+    agency_title_suffix,
+    agency_view_full_json,
+    agency_yearly_data_heading,
+    race_asian,
+    race_black,
+    race_hispanic,
+    race_other,
+    race_total,
+    race_white,
+  } from "$lib/paraglide/messages";
 
   /** @type {import('./$types').PageData} */
   export let data;
@@ -88,9 +108,28 @@
     return JSON.stringify(value);
   };
 
-  const columnLabels = ["Total", "White", "Black", "Hispanic", "Asian", "Other"];
-  const chartRaceKeys = columnLabels.filter((label) => label !== "Total");
+  const columnKeys = ["Total", "White", "Black", "Hispanic", "Asian", "Other"];
+  const chartRaceKeys = columnKeys.filter((label) => label !== "Total");
   const priorityPrefix = "rates--totals-";
+
+  const raceLabel = (key) => {
+    switch (key) {
+      case "Total":
+        return race_total();
+      case "White":
+        return race_white();
+      case "Black":
+        return race_black();
+      case "Hispanic":
+        return race_hispanic();
+      case "Asian":
+        return race_asian();
+      case "Other":
+        return race_other();
+      default:
+        return key;
+    }
+  };
 
   const getSortedEntries = (entry) =>
     Object.entries(entry)
@@ -204,18 +243,26 @@
 
 <main class="mx-auto w-full max-w-5xl px-4 pb-16 pt-12 sm:px-6">
   <header class="mb-10">
-    <p class="text-xs uppercase tracking-[0.12em] text-slate-500">Agency preview</p>
+    <p class="text-xs uppercase tracking-[0.12em] text-slate-500">
+      {agency_preview_label()}
+    </p>
     <h1 class="mt-3 text-3xl font-semibold tracking-tight text-slate-900 md:text-4xl">
       {agencyData?.agency ?? data.slug}
     </h1>
-    <p class="mt-2 text-xs font-mono tracking-[0.08em] text-slate-500">Slug: {data.slug}</p>
+    <p class="mt-2 text-xs font-mono tracking-[0.08em] text-slate-500">
+      {agency_slug_label()}: {data.slug}
+    </p>
   </header>
 
-  <AgencyMap heading="Location" addressResponse={geocodeAddressResponse} />
+  <AgencyMap
+    heading={agency_location_heading()}
+    loadingLabel={agency_map_loading()}
+    addressResponse={geocodeAddressResponse}
+  />
 
   {#if metadata && metadataEntries.length > 0}
     <section class="mb-10">
-      <h2 class="mb-4 text-xl font-semibold text-slate-900">Agency metadata</h2>
+      <h2 class="mb-4 text-xl font-semibold text-slate-900">{agency_metadata_heading()}</h2>
       <dl class="grid gap-3">
         {#each metadataEntries as [key, value]}
           <div
@@ -234,7 +281,7 @@
       <h2 class="mb-4 text-xl font-semibold text-slate-900">{block.label}</h2>
       <details class="rounded-xl border border-slate-200 bg-white p-4">
         <summary class="cursor-pointer text-sm font-semibold text-slate-900">
-          View geocode JSON
+          {agency_geocode_summary()}
         </summary>
         <div class="mt-3 rounded-xl bg-slate-900 p-4 text-slate-200 shadow-lg">
           <pre class="whitespace-pre-wrap break-words text-xs leading-relaxed font-mono">{stableStringify(block.data)}</pre>
@@ -244,9 +291,9 @@
   {/each}
 
   <section class="mb-10">
-    <h2 class="mb-4 text-xl font-semibold text-slate-900">Yearly data</h2>
+    <h2 class="mb-4 text-xl font-semibold text-slate-900">{agency_yearly_data_heading()}</h2>
     {#if years.length === 0}
-      <p class="text-sm text-slate-500">No row data found.</p>
+      <p class="text-sm text-slate-500">{agency_no_rows()}</p>
     {:else}
       {#each years as year}
         <article class="relative mb-8">
@@ -257,7 +304,9 @@
           </h3>
           {#each rowsByYear[year] as entry, entryIndex}
             {#if rowsByYear[year].length > 1}
-              <p class="mb-2 mt-4 text-sm text-slate-500">Entry {entryIndex + 1}</p>
+              <p class="mb-2 mt-4 text-sm text-slate-500">
+                {agency_entry_label()} {entryIndex + 1}
+              </p>
             {/if}
             <div class="mb-6 max-w-full overflow-x-auto overflow-y-visible rounded-xl border border-slate-200 bg-white">
               <table class="min-w-full table-auto border-separate border-spacing-0">
@@ -266,13 +315,13 @@
                     <th
                       class="bg-slate-100 px-2 py-2 text-left text-xs font-semibold text-slate-700 sm:px-4 sm:text-sm"
                     >
-                      Metric
+                      {agency_metric_header()}
                     </th>
-                    {#each columnLabels as label}
+                    {#each columnKeys as label}
                       <th
                         class="bg-slate-100 px-2 py-2 text-left text-xs font-semibold text-slate-700 sm:px-4 sm:text-sm"
                       >
-                        {label}
+                        {raceLabel(label)}
                       </th>
                     {/each}
                   </tr>
@@ -292,13 +341,13 @@
                       >
                         {key}
                       </td>
-                      {#each columnLabels as label}
-                        <td
-                          class="px-2 py-2 text-sm font-mono text-slate-900 tabular-nums whitespace-nowrap sm:px-4 sm:py-3 sm:text-base"
-                        >
-                          {columns[label]}
-                        </td>
-                      {/each}
+                    {#each columnKeys as label}
+                      <td
+                        class="px-2 py-2 text-sm font-mono text-slate-900 tabular-nums whitespace-nowrap sm:px-4 sm:py-3 sm:text-base"
+                      >
+                        {columns[label]}
+                      </td>
+                    {/each}
                     </tr>
                   {/each}
                 </tbody>
@@ -311,7 +360,9 @@
   </section>
 
   <details class="rounded-xl border border-slate-200 bg-white p-4">
-    <summary class="cursor-pointer text-sm font-semibold text-slate-900">View full JSON</summary>
+    <summary class="cursor-pointer text-sm font-semibold text-slate-900">
+      {agency_view_full_json()}
+    </summary>
     <div class="mt-3 rounded-xl bg-slate-900 p-4 text-slate-200 shadow-lg">
       <pre class="whitespace-pre-wrap break-words text-xs leading-relaxed font-mono">{stableStringify(agencyData)}</pre>
     </div>
