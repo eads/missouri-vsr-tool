@@ -242,9 +242,10 @@
                 y="value"
                 yDomain={[0, null]}
                 yNice={4}
-                padding={{ left: 56, right: 12, bottom: 24, top: 8 }}
+                padding={{ left: 64, right: 12, bottom: 24, top: 8 }}
               >
                 <Svg>
+                  <Bars strokeWidth={1} fill="#cbd5e1" />
                   <Axis
                     placement="left"
                     grid={{ class: "stroke-slate-200/70" }}
@@ -252,10 +253,7 @@
                     tickLength={3}
                     ticks={4}
                     tickLabelProps={{
-                      fill: "#0f172a",
-                      stroke: "none",
-                      strokeWidth: 0,
-                      style: "font-size: 11px; font-weight: 600;",
+                      style: "color: #0f172a; font-size: 11px; font-weight: 600;",
                     }}
                   />
                   <Axis
@@ -263,13 +261,9 @@
                     rule={{ class: "stroke-slate-400" }}
                     tickLength={3}
                     tickLabelProps={{
-                      fill: "#64748b",
-                      stroke: "none",
-                      strokeWidth: 0,
-                      style: "font-size: 10px; font-weight: 500;",
+                      style: "color: #64748b; font-size: 10px; font-weight: 500;",
                     }}
                   />
-                  <Bars strokeWidth={1} fill="#cbd5e1" />
                   <Highlight area />
                 </Svg>
               </Chart>
