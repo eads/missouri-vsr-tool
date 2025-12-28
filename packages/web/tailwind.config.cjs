@@ -1,5 +1,5 @@
 module.exports = {
-  content: ["./src/**/*.{html,js,svelte,ts}", "./node_modules/layerchart/**/*.{svelte,js}"],
+  content: ["./src/**/*.{html,js,svelte,ts}"],
   theme: {
     extend: {
       fontFamily: {
