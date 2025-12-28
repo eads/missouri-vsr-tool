@@ -6,6 +6,7 @@
   import AgencyMap from "$lib/components/AgencyMap.svelte";
   import MetricChartModal from "$lib/components/MetricChartModal.svelte";
   import { onMount } from "svelte";
+  import * as m from "$lib/paraglide/messages";
   import {
     agency_entry_label,
     agency_geocode_summary,
@@ -15,6 +16,8 @@
     agency_metric_header,
     agency_no_rows,
     agency_preview_label,
+    agency_percentile_label,
+    agency_rank_label,
     agency_slug_label,
     agency_title_suffix,
     agency_view_full_json,
@@ -119,6 +122,60 @@
   const chartRaceKeys = columnKeys.filter((label) => label !== "Total");
   const priorityPrefix = "rates--totals-";
 
+  const metricKeyForSlug = (slug) =>
+    `metric_${slug}`
+      .replace(/[^a-z0-9]/gi, "_")
+      .replace(/_+/g, "_")
+      .replace(/^_|_$/g, "")
+      .toLowerCase();
+
+  const titleToken = (token) => {
+    const lower = token.toLowerCase();
+    if (lower === "acs") return "ACS";
+    if (lower === "bac") return "BAC";
+    if (lower === "dwi") return "DWI";
+    if (lower === "hwy") return "Hwy";
+    if (lower === "pct") return "Pct";
+    if (lower === "us") return "US";
+    return `${lower.charAt(0).toUpperCase()}${lower.slice(1)}`;
+  };
+
+  const humanizeMetricSlug = (slug) => {
+    let leaf = slug;
+    if (slug.includes("--")) {
+      const parts = slug.split("--");
+      leaf = parts[parts.length - 1];
+    } else if (slug.startsWith("rates-")) {
+      leaf = slug.slice("rates-".length);
+    } else if (slug.startsWith("search-")) {
+      leaf = slug.slice("search-".length);
+    } else if (slug.startsWith("stops-")) {
+      leaf = slug.slice("stops-".length);
+    }
+
+    const rawTokens = leaf.split("-").filter(Boolean);
+    const tokens = [];
+
+    for (let i = 0; i < rawTokens.length; i += 1) {
+      const token = rawTokens[i];
+      const nextToken = rawTokens[i + 1];
+      if (/^\d+$/.test(token) && /^\d+$/.test(nextToken)) {
+        tokens.push(`${token}-${nextToken}`);
+        i += 1;
+        continue;
+      }
+      tokens.push(titleToken(token));
+    }
+
+    return tokens.join(" ");
+  };
+
+  const metricLabelForKey = (slug) => {
+    const key = metricKeyForSlug(slug);
+    const labelFn = m?.[key];
+    return labelFn ? labelFn() : humanizeMetricSlug(slug);
+  };
+
   const raceLabel = (key) => {
     switch (key) {
       case "Total":
@@ -138,15 +195,68 @@
     }
   };
 
-  const getSortedEntries = (entry) =>
-    Object.entries(entry)
-      .filter(([key]) => key !== "year")
-      .sort(([keyA], [keyB]) => {
-        const aPriority = keyA.startsWith(priorityPrefix) ? 0 : 1;
-        const bPriority = keyB.startsWith(priorityPrefix) ? 0 : 1;
+  const metricSuffixes = [
+    { suffix: "-rank", type: "rank", priority: 0 },
+    { suffix: "-rank-no-mshp", type: "rank", priority: 1 },
+    { suffix: "-percentile", type: "percentile", priority: 0 },
+    { suffix: "-percentile-no-mshp", type: "percentile", priority: 1 },
+  ];
+
+  const getMetricGroups = (entry) => {
+    const groups = {};
+
+    Object.entries(entry).forEach(([key, value]) => {
+      if (key === "year") return;
+      let baseKey = key;
+      let type = "base";
+      let priority = 0;
+
+      for (const suffix of metricSuffixes) {
+        if (key.endsWith(suffix.suffix)) {
+          baseKey = key.slice(0, -suffix.suffix.length);
+          type = suffix.type;
+          priority = suffix.priority;
+          break;
+        }
+      }
+
+      if (!groups[baseKey]) {
+        groups[baseKey] = {
+          key: baseKey,
+          base: undefined,
+          rank: undefined,
+          percentile: undefined,
+          rankPriority: Infinity,
+          percentilePriority: Infinity,
+        };
+      }
+
+      const group = groups[baseKey];
+
+      if (type === "base") {
+        group.base = value;
+      } else if (type === "rank") {
+        if (priority < group.rankPriority) {
+          group.rank = value;
+          group.rankPriority = priority;
+        }
+      } else if (type === "percentile") {
+        if (priority < group.percentilePriority) {
+          group.percentile = value;
+          group.percentilePriority = priority;
+        }
+      }
+    });
+
+    return Object.values(groups)
+      .filter((group) => group.base !== undefined)
+      .sort((a, b) => {
+        const aPriority = a.key.startsWith(priorityPrefix) ? 0 : 1;
+        const bPriority = b.key.startsWith(priorityPrefix) ? 0 : 1;
         if (aPriority !== bPriority) return aPriority - bPriority;
-        return compareStrings(keyA, keyB);
+        return compareStrings(a.key, b.key);
       });
+  };
 
   const normalizeMetric = (value) => {
     const base = {
@@ -177,6 +287,9 @@
     };
   };
 
+  const hasSupplementValue = (value) =>
+    value !== null && value !== undefined && value !== "—" && value !== "";
+
   let activeMetricKey = "";
   let activeMetricLabel = "";
 
@@ -200,7 +313,7 @@
   const openMetric = (metricKey, { updateHash = true } = {}) => {
     if (!metricKey) return;
     activeMetricKey = metricKey;
-    activeMetricLabel = metricKey;
+    activeMetricLabel = metricLabelForKey(metricKey);
     if (updateHash) {
       setHash(metricKey);
     }
@@ -334,29 +447,53 @@
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-200">
-                  {#each getSortedEntries(entry) as [key, value]}
-                    {@const columns = normalizeMetric(value)}
-                    <tr
-                      class="cursor-pointer hover:bg-slate-50"
-                      role="button"
-                      tabindex="0"
-                      on:click={() => openMetric(key)}
-                      on:keydown={(event) => handleRowKeydown(event, key)}
+                {#each getMetricGroups(entry) as metric}
+                  {@const columns = normalizeMetric(metric.base)}
+                  {@const rankColumns = metric.rank ? normalizeMetric(metric.rank) : null}
+                  {@const percentileColumns = metric.percentile
+                    ? normalizeMetric(metric.percentile)
+                    : null}
+                  <tr
+                    class="cursor-pointer hover:bg-slate-50"
+                    role="button"
+                    tabindex="0"
+                    on:click={() => openMetric(metric.key)}
+                    on:keydown={(event) => handleRowKeydown(event, metric.key)}
+                  >
+                    <td
+                      class="px-2 py-2 text-xs font-medium text-slate-700 sm:px-4 sm:py-3 sm:text-sm whitespace-normal break-words leading-tight"
                     >
-                      <td
-                        class="px-2 py-2 text-xs font-medium text-slate-700 sm:px-4 sm:py-3 sm:text-sm whitespace-normal break-words leading-tight"
-                      >
-                        {key}
-                      </td>
+                      {metricLabelForKey(metric.key)}
+                    </td>
                     {#each columnKeys as label}
-                      <td
-                        class="px-2 py-2 text-sm font-mono text-slate-900 tabular-nums whitespace-nowrap sm:px-4 sm:py-3 sm:text-base"
-                      >
-                        {columns[label]}
+                      {@const rankValue = rankColumns?.[label]}
+                      {@const percentileValue = percentileColumns?.[label]}
+                      {@const showRank = hasSupplementValue(rankValue)}
+                      {@const showPercentile = hasSupplementValue(percentileValue)}
+                      <td class="px-2 py-2 sm:px-4 sm:py-3">
+                        <div class="flex flex-col gap-0.5">
+                          <span class="text-sm font-mono text-slate-900 tabular-nums whitespace-nowrap sm:text-base">
+                            {columns[label]}
+                          </span>
+                          {#if showRank || showPercentile}
+                            <span class="text-[10px] text-slate-500 sm:text-xs sm:text-slate-500">
+                              {#if showRank}
+                                <span class="block">
+                                  {agency_rank_label()} {rankValue}
+                                </span>
+                              {/if}
+                              {#if showPercentile}
+                                <span class="block">
+                                  {agency_percentile_label()} {percentileValue}
+                                </span>
+                              {/if}
+                            </span>
+                          {/if}
+                        </div>
                       </td>
                     {/each}
-                    </tr>
-                  {/each}
+                  </tr>
+                {/each}
                 </tbody>
               </table>
             </div>

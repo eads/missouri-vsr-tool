@@ -188,7 +188,7 @@
   />
   {#if results.length}
     <ul
-      class="absolute left-0 right-0 top-full z-20 mt-2 max-h-80 list-none overflow-y-auto rounded-xl border border-slate-200 bg-white py-2 shadow-xl"
+      class="absolute left-0 right-0 top-full z-50 mt-2 max-h-80 list-none overflow-y-auto rounded-xl border border-slate-200 bg-white py-2 shadow-xl"
       role="listbox"
     >
       {#each results as result, index}
