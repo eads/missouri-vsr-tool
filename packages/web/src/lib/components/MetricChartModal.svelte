@@ -19,6 +19,7 @@
     race_hispanic,
     race_native_american,
     race_other,
+    race_total,
     race_white,
   } from "$lib/paraglide/messages";
 
@@ -81,17 +82,30 @@
     value: barTotals[year] ?? 0,
   }));
 
+  const numberFormatter = new Intl.NumberFormat(undefined, {
+    maximumFractionDigits: 1,
+  });
+
   const formatNumber = (value) => {
     if (value === null || value === undefined) return "—";
     if (typeof value !== "number" || !Number.isFinite(value)) return String(value);
-    if (Number.isInteger(value)) return String(value);
-    return value.toFixed(2).replace(/\.?0+$/, "");
+    return numberFormatter.format(value);
   };
 
-  const baselineRaceOrder = ["White", "Black", "Hispanic", "Asian", "Other", "Native American"];
+  const baselineRaceOrder = [
+    "Total",
+    "White",
+    "Black",
+    "Hispanic",
+    "Asian",
+    "Other",
+    "Native American",
+  ];
 
   const raceLabel = (key) => {
     switch (key) {
+      case "Total":
+        return race_total();
       case "White":
         return race_white();
       case "Black":
@@ -129,8 +143,13 @@
     const year = row?.year;
     if (!year) return acc;
     const metric = row?.[metricKey];
-    if (!metric || typeof metric !== "object" || Array.isArray(metric)) return acc;
     if (!acc[year]) acc[year] = {};
+    if (metric === null || metric === undefined) return acc;
+    if (typeof metric === "number" || typeof metric === "string") {
+      acc[year].Total = (acc[year].Total ?? 0) + toNumber(metric);
+      return acc;
+    }
+    if (typeof metric !== "object" || Array.isArray(metric)) return acc;
     baselineRaceOrder.forEach((race) => {
       const lower = race.toLowerCase();
       const value = metric[race] ?? metric[lower];
@@ -229,7 +248,7 @@
                   <Axis
                     placement="left"
                     grid={{ class: "stroke-slate-200/70" }}
-                    rule={{ class: "stroke-slate-300" }}
+                    rule={{ class: "stroke-slate-400" }}
                     tickLength={3}
                     ticks={4}
                     tickLabelProps={{
@@ -241,7 +260,7 @@
                   />
                   <Axis
                     placement="bottom"
-                    rule={{ class: "stroke-slate-300" }}
+                    rule={{ class: "stroke-slate-400" }}
                     tickLength={3}
                     tickLabelProps={{
                       fill: "#64748b",

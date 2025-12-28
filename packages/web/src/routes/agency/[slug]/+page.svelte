@@ -48,6 +48,9 @@
   };
 
   const stableStringify = (value) => JSON.stringify(sortValue(value), null, 2);
+  const numberFormatter = new Intl.NumberFormat(undefined, {
+    maximumFractionDigits: 1,
+  });
 
   let agencyData;
   let metadata;
@@ -97,12 +100,16 @@
   const formatValue = (value) => {
     if (value === null || value === undefined) return "—";
     if (typeof value === "number" && Number.isFinite(value)) {
-      if (Number.isInteger(value)) return String(value);
-      return value
-        .toFixed(2)
-        .replace(/\.?0+$/, "");
+      return numberFormatter.format(value);
     }
-    if (typeof value === "string" || typeof value === "boolean") {
+    if (typeof value === "string") {
+      const numeric = Number(value);
+      if (value.trim() !== "" && Number.isFinite(numeric)) {
+        return numberFormatter.format(numeric);
+      }
+      return value;
+    }
+    if (typeof value === "boolean") {
       return String(value);
     }
     return JSON.stringify(value);

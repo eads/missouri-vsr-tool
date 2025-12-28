@@ -25,7 +25,7 @@
   const formatStops = (value) => {
     const numeric = typeof value === "string" ? Number(value) : value;
     if (!Number.isFinite(numeric)) return null;
-    return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(numeric);
+    return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(numeric);
   };
   const toSubLabel = (item) => [item?.city].filter(Boolean).join(" • ");
   const toSlug = (item) => item?.agency_slug || item?.slug || item?.id;
