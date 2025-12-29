@@ -11,11 +11,13 @@
     agency_geocode_summary,
     agency_location_heading,
     agency_map_loading,
+    agency_address_label,
+    agency_type_label,
+    agency_phone_label,
+    agency_jurisdiction_label,
     agency_metadata_heading,
     agency_metric_header,
     agency_no_rows,
-    agency_preview_label,
-    agency_slug_label,
     agency_title_suffix,
     agency_view_full_json,
     agency_yearly_data_heading,
@@ -51,6 +53,9 @@
   const stableStringify = (value) => JSON.stringify(sortValue(value), null, 2);
   const numberFormatter = new Intl.NumberFormat(undefined, {
     maximumFractionDigits: 1,
+  });
+  const stopCountFormatter = new Intl.NumberFormat(undefined, {
+    maximumFractionDigits: 0,
   });
   const percentFormatter = new Intl.NumberFormat(undefined, {
     style: "percent",
@@ -131,6 +136,213 @@
     }
     return JSON.stringify(value);
   };
+
+  const cleanMetadataValue = (value) => {
+    if (value === null || value === undefined) return "";
+    const stringValue = String(value).trim();
+    if (!stringValue || stringValue.toLowerCase() === "nan") return "";
+    return stringValue;
+  };
+
+  let agencyType = "";
+  let addressLine = "";
+  let addressCityLine = "";
+  let addressDisplay = [];
+  let mapHref = "";
+  let rawPhone = "";
+  let phoneHref = "";
+  let jurisdictionDisplay = "";
+  let showJurisdiction = false;
+  let addressState = "";
+  let stopVolumeSentence = "";
+  const formatPhone = (value) => {
+    const digits = value.replace(/\D+/g, "");
+    if (digits.length === 10) {
+      return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+    }
+    if (digits.length === 7) {
+      return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+    }
+    return value;
+  };
+  $: agencyType = cleanMetadataValue(metadata?.AgencyType);
+  $: {
+    const typeKey = agencyType.toLowerCase();
+    const cityValue =
+      cleanMetadataValue(metadata?.AddressCity) ||
+      cleanMetadataValue(metadata?.geocode_jurisdiction_response?.results?.[0]?.address_components?.city) ||
+      cleanMetadataValue(metadata?.geocode_address_response?.results?.[0]?.address_components?.city);
+    const countyValue =
+      cleanMetadataValue(metadata?.geocode_jurisdiction_county) ||
+      cleanMetadataValue(metadata?.geocode_address_county);
+    const stateValue =
+      cleanMetadataValue(metadata?.geocode_jurisdiction_response?.results?.[0]?.address_components?.state) ||
+      cleanMetadataValue(metadata?.geocode_address_response?.results?.[0]?.address_components?.state) ||
+      cleanMetadataValue(metadata?.geocode_address_response?.input?.address_components?.state);
+    addressState = stateValue;
+    const isRail = typeKey.includes("rail");
+    const isAirport = typeKey.includes("airport");
+    const isMunicipal = typeKey.includes("municipal");
+    const isCounty = typeKey.includes("county");
+    const isStateAgency = typeKey.includes("state");
+
+    if (isRail) {
+      jurisdictionDisplay = "";
+      showJurisdiction = false;
+    } else if (isAirport) {
+      jurisdictionDisplay = "airport";
+      showJurisdiction = true;
+    } else if (isMunicipal) {
+      jurisdictionDisplay = cityValue || countyValue || stateValue;
+      showJurisdiction = Boolean(jurisdictionDisplay);
+    } else if (isCounty) {
+      jurisdictionDisplay = countyValue || cityValue || stateValue;
+      showJurisdiction = Boolean(jurisdictionDisplay);
+    } else if (isStateAgency) {
+      jurisdictionDisplay = stateValue || "state";
+      showJurisdiction = Boolean(jurisdictionDisplay);
+    } else {
+      jurisdictionDisplay = countyValue || cityValue || stateValue;
+      showJurisdiction = Boolean(jurisdictionDisplay);
+    }
+  }
+  $: {
+    const line1 = cleanMetadataValue(metadata?.AddressLine1);
+    const line2 = cleanMetadataValue(metadata?.AddressLine2);
+    const city = cleanMetadataValue(metadata?.AddressCity);
+    const zip = cleanMetadataValue(metadata?.AddressZip);
+    addressLine = [line1, line2].filter(Boolean).join(" ");
+    const cityState = [city, addressState].filter(Boolean).join(", ");
+    addressCityLine = [cityState, zip].filter(Boolean).join(" ");
+    addressDisplay = [addressLine, addressCityLine].filter(Boolean);
+    const addressQuery =
+      cleanMetadataValue(metadata?.geocode_address_query) ||
+      [addressLine, cityState, zip].filter(Boolean).join(", ");
+    mapHref = addressQuery
+      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addressQuery)}`
+      : "";
+  }
+  $: rawPhone = cleanMetadataValue(metadata?.AgencyPhone);
+  $: {
+    const phoneDigits = rawPhone.replace(/\D+/g, "");
+    phoneHref = phoneDigits ? `tel:${phoneDigits}` : "";
+  }
+  $: phoneDisplay = rawPhone ? formatPhone(rawPhone) : "";
+
+  $: {
+    const latestYear = years.find((year) => Number.isFinite(Number(year)));
+    stopVolumeSentence = "";
+    if (!latestYear) {
+      stopVolumeSentence = "";
+    } else {
+      const yearValue = Number(latestYear);
+      const totalEntry = rows.find(
+        (row) =>
+          Number(row?.year) === yearValue && row?.slug === "rates--totals--all-stops"
+      );
+      const percentileEntry =
+        rows.find(
+          (row) =>
+            Number(row?.year) === yearValue &&
+            row?.slug === "rates--totals--all-stops-percentile"
+        ) ||
+        rows.find(
+          (row) =>
+            Number(row?.year) === yearValue &&
+            row?.slug === "rates--totals--all-stops-percentile-no-mshp"
+        );
+      const rankEntry =
+        rows.find(
+          (row) =>
+            Number(row?.year) === yearValue &&
+            row?.slug === "rates--totals--all-stops-rank"
+        ) ||
+        rows.find(
+          (row) =>
+            Number(row?.year) === yearValue &&
+            row?.slug === "rates--totals--all-stops-rank-no-mshp"
+        );
+      const totalValue = getMetricValue(totalEntry, "Total");
+      const totalNumeric = typeof totalValue === "string" ? Number(totalValue) : totalValue;
+      if (!Number.isFinite(totalNumeric)) {
+        stopVolumeSentence = "";
+      } else {
+        const agencyName = agencyData?.agency ?? data.slug;
+        const totalStops = stopCountFormatter.format(totalNumeric);
+        const leadFn = m?.agency_stop_volume_lead;
+        const lead =
+          typeof leadFn === "function"
+            ? leadFn({ agency: agencyName, stops: totalStops, year: latestYear })
+            : `${agencyName} had ${totalStops} stops in ${latestYear}`;
+
+        const percentileValue = getMetricValue(percentileEntry, "Total");
+        const percentileNumeric =
+          typeof percentileValue === "string" ? Number(percentileValue) : percentileValue;
+        let segmentSentence = "";
+        if (Number.isFinite(percentileNumeric)) {
+          const topThreshold = 80;
+          const bottomThreshold = 20;
+          let segmentKey = "middle";
+          if (percentileNumeric >= topThreshold) segmentKey = "top";
+          else if (percentileNumeric <= bottomThreshold) segmentKey = "bottom";
+          const segmentLabel =
+            segmentKey === "top"
+              ? typeof m?.agency_stop_volume_segment_top === "function"
+                ? m.agency_stop_volume_segment_top()
+                : "top 20%"
+              : segmentKey === "bottom"
+              ? typeof m?.agency_stop_volume_segment_bottom === "function"
+                ? m.agency_stop_volume_segment_bottom()
+                : "bottom 20%"
+              : typeof m?.agency_stop_volume_segment_middle === "function"
+              ? m.agency_stop_volume_segment_middle()
+              : "middle 60%";
+          const segmentFn = m?.agency_stop_volume_segment_sentence;
+          segmentSentence =
+            typeof segmentFn === "function"
+              ? segmentFn({ segment: segmentLabel })
+              : `putting it in the ${segmentLabel} of departments by stop volume`;
+        }
+        const leadSentence = segmentSentence ? `${lead}, ${segmentSentence}.` : `${lead}.`;
+
+        const rankValue = getMetricValue(rankEntry, "Total");
+        const rankNumeric = typeof rankValue === "string" ? Number(rankValue) : rankValue;
+        let rankSentence = "";
+        if (Number.isFinite(rankNumeric)) {
+          const rankRounded = Math.round(rankNumeric);
+          if (rankRounded === 1) {
+            const rankHighestFn = m?.agency_stop_volume_rank_highest;
+            rankSentence =
+              typeof rankHighestFn === "function"
+                ? rankHighestFn()
+                : "Making it the highest volume agency in the state.";
+          } else {
+            const rankDisplay = stopCountFormatter.format(rankRounded);
+            const agencyCount = Number(data?.agencyCount);
+            const totalDisplay =
+              Number.isFinite(agencyCount) && agencyCount > 0
+                ? stopCountFormatter.format(agencyCount)
+                : "";
+            const rankFn = m?.agency_stop_volume_ranked;
+            const rankSimpleFn = m?.agency_stop_volume_ranked_simple;
+            if (totalDisplay) {
+              rankSentence =
+                typeof rankFn === "function"
+                  ? rankFn({ rank: rankDisplay, total: totalDisplay })
+                  : `Ranked #${rankDisplay} out of ${totalDisplay} departments.`;
+            } else {
+              rankSentence =
+                typeof rankSimpleFn === "function"
+                  ? rankSimpleFn({ rank: rankDisplay })
+                  : `Ranked #${rankDisplay}.`;
+            }
+          }
+        }
+
+        stopVolumeSentence = [leadSentence, rankSentence].filter(Boolean).join(" ");
+      }
+    }
+  }
 
   const columnKeys = [
     "Total",
@@ -435,42 +647,92 @@
 
 <main class="mx-auto w-full max-w-5xl px-4 pb-16 pt-12 sm:px-6">
   <header class="mb-10">
-    <p class="text-xs uppercase tracking-[0.12em] text-slate-500">
-      {agency_preview_label()}
-    </p>
     <h1 class="mt-3 text-3xl font-semibold tracking-tight text-slate-900 md:text-4xl">
       {agencyData?.agency ?? data.slug}
     </h1>
-    <p class="mt-2 text-xs font-mono tracking-[0.08em] text-slate-500">
-      {agency_slug_label()}: {data.slug}
-    </p>
   </header>
 
-  <AgencyMap
-    heading={agency_location_heading()}
-    loadingLabel={agency_map_loading()}
-    addressResponse={geocodeAddressResponse}
-  />
+  <section class="mb-10 grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)] md:items-start">
+    <div class="rounded-2xl border border-slate-200 bg-white p-3">
+      {#if stopVolumeSentence}
+        <p class="mb-4 text-xl font-medium text-slate-800 leading-snug">{stopVolumeSentence}</p>
+      {/if}
+      <dl class="divide-y divide-slate-100">
+        {#if showJurisdiction}
+          <div class="grid gap-1 py-1.5 sm:grid-cols-[110px_1fr] sm:items-start">
+            <dt class="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+              {agency_jurisdiction_label()}
+            </dt>
+            <dd class="text-sm font-medium text-slate-700">
+              {jurisdictionDisplay}
+            </dd>
+          </div>
+        {/if}
+        <div class="grid gap-1 py-1.5 sm:grid-cols-[110px_1fr] sm:items-start">
+          <dt class="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+            {agency_type_label()}
+          </dt>
+          <dd class="text-sm font-medium text-slate-700">
+            {agencyType || "—"}
+          </dd>
+        </div>
+        <div class="grid gap-1 py-1.5 sm:grid-cols-[110px_1fr] sm:items-start">
+          <dt class="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+            {agency_address_label()}
+          </dt>
+          <dd class="text-sm font-medium text-slate-700">
+            {#if addressDisplay.length}
+              {#if mapHref}
+                <a
+                  class="block"
+                  href={mapHref}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {#each addressDisplay as line}
+                    <span class="block">{line}</span>
+                  {/each}
+                </a>
+              {:else}
+                {#each addressDisplay as line}
+                  <span class="block">{line}</span>
+                {/each}
+              {/if}
+            {:else}
+              —
+            {/if}
+          </dd>
+        </div>
+        <div class="grid gap-1 py-1.5 sm:grid-cols-[110px_1fr] sm:items-start">
+          <dt class="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+            {agency_phone_label()}
+          </dt>
+          <dd class="text-sm font-medium text-slate-700">
+            {#if phoneDisplay}
+              {#if phoneHref}
+                <a href={phoneHref}>
+                  {phoneDisplay}
+                </a>
+              {:else}
+                {phoneDisplay}
+              {/if}
+            {:else}
+              —
+            {/if}
+          </dd>
+        </div>
+      </dl>
+    </div>
+    <AgencyMap
+      heading={agency_location_heading()}
+      loadingLabel={agency_map_loading()}
+      addressResponse={geocodeAddressResponse}
+      showHeading={false}
+      className="mb-0"
+      heightClass="h-[280px]"
+    />
+  </section>
 
-  {#if metadata && metadataEntries.length > 0}
-    <section class="mb-10">
-      <details class="rounded-xl border border-slate-200 bg-white p-4">
-        <summary class="cursor-pointer text-sm font-semibold text-slate-900">
-          {agency_metadata_heading()}
-        </summary>
-        <dl class="mt-4 grid gap-3">
-          {#each metadataEntries as [key, value]}
-            <div
-              class="grid gap-2 rounded-xl border border-slate-200 bg-white p-4 md:grid-cols-[minmax(160px,1fr)_2fr] md:gap-4"
-            >
-              <dt class="text-sm font-semibold text-slate-700">{key}</dt>
-              <dd class="text-sm text-slate-600">{formatValue(value)}</dd>
-            </div>
-          {/each}
-        </dl>
-      </details>
-    </section>
-  {/if}
 
   <section class="mb-10">
     <h2 class="mb-4 text-xl font-semibold text-slate-900">{agency_yearly_data_heading()}</h2>
@@ -612,6 +874,26 @@
       </details>
     </section>
   {/each}
+
+  {#if metadata && metadataEntries.length > 0}
+    <section class="mb-10">
+      <details class="rounded-xl border border-slate-200 bg-white p-4">
+        <summary class="cursor-pointer text-sm font-semibold text-slate-900">
+          {agency_metadata_heading()}
+        </summary>
+        <dl class="mt-4 grid gap-3">
+          {#each metadataEntries as [key, value]}
+            <div
+              class="grid gap-2 rounded-xl border border-slate-200 bg-white p-4 md:grid-cols-[minmax(160px,1fr)_2fr] md:gap-4"
+            >
+              <dt class="text-sm font-semibold text-slate-700">{key}</dt>
+              <dd class="text-sm text-slate-600">{formatValue(value)}</dd>
+            </div>
+          {/each}
+        </dl>
+      </details>
+    </section>
+  {/if}
 
   <details class="rounded-xl border border-slate-200 bg-white p-4">
     <summary class="cursor-pointer text-sm font-semibold text-slate-900">

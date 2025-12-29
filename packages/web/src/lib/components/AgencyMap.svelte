@@ -6,6 +6,9 @@
   export let fallbackResponse = null;
   export let heading = "Location";
   export let loadingLabel = "Map loading…";
+  export let showHeading = true;
+  export let className = "";
+  export let heightClass = "h-[360px]";
 
   let MapLibre;
   let Marker;
@@ -37,10 +40,12 @@
   });
 </script>
 
-<section class="mb-10">
-  <h2 class="mb-4 text-xl font-semibold text-slate-900">{heading}</h2>
+<section class={`mb-10 ${className}`.trim()}>
+  {#if showHeading && heading}
+    <h2 class="mb-4 text-xl font-semibold text-slate-900">{heading}</h2>
+  {/if}
   {#if mapReady && MapLibre && center}
-    <div class="h-[360px] w-full overflow-hidden rounded-2xl border border-slate-200 bg-slate-200">
+    <div class={`${heightClass} w-full overflow-hidden rounded-2xl border border-slate-200 bg-slate-200`}>
       <svelte:component
         this={MapLibre}
         class="h-full w-full"

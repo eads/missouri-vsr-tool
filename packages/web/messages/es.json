@@ -11,6 +11,10 @@
   "agency_title_suffix": "Agencia",
   "agency_preview_label": "Vista previa de la agencia",
   "agency_slug_label": "Slug",
+  "agency_type_label": "Tipo de agencia",
+  "agency_jurisdiction_label": "Jurisdicción",
+  "agency_address_label": "Dirección",
+  "agency_phone_label": "Teléfono",
   "agency_location_heading": "Ubicación",
   "agency_map_loading": "Cargando mapa…",
   "agency_metadata_heading": "Metadatos de la agencia",
@@ -120,5 +124,13 @@
   "metric_stops_stop_outcome_searches": "Searches",
   "metric_stops_stop_outcome_warning": "Warning",
   "agency_section_label": "Sección",
-  "agency_table_label": "Tabla"
+  "agency_table_label": "Tabla",
+  "agency_stop_volume_lead": "{agency} tuvo {stops} paradas de tráfico en {year}",
+  "agency_stop_volume_segment_sentence": "ubicándola en el {segment} de departamentos por volumen de paradas",
+  "agency_stop_volume_segment_top": "20% superior",
+  "agency_stop_volume_segment_middle": "60% medio",
+  "agency_stop_volume_segment_bottom": "20% inferior",
+  "agency_stop_volume_ranked": "Clasificada #{rank} de {total} departamentos.",
+  "agency_stop_volume_ranked_simple": "Clasificada #{rank}.",
+  "agency_stop_volume_rank_highest": "Es la agencia de mayor volumen del estado."
 }

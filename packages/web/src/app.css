@@ -12,6 +12,18 @@
   body {
     @apply bg-slate-50 font-sans text-slate-900 antialiased;
   }
+
+  a {
+    @apply text-emerald-900 underline decoration-emerald-900 underline-offset-2;
+  }
+
+  a:hover {
+    @apply text-emerald-600 decoration-emerald-600;
+  }
+
+  a:focus-visible {
+    @apply outline-none ring-2 ring-emerald-300 ring-offset-2 ring-offset-slate-50;
+  }
 }
 
 @media (max-width: 768px) {

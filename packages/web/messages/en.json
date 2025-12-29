@@ -11,6 +11,10 @@
   "agency_title_suffix": "Agency",
   "agency_preview_label": "Agency preview",
   "agency_slug_label": "Slug",
+  "agency_type_label": "Agency type",
+  "agency_jurisdiction_label": "Jurisdiction",
+  "agency_address_label": "Address",
+  "agency_phone_label": "Phone",
   "agency_location_heading": "Location",
   "agency_map_loading": "Map loading…",
   "agency_metadata_heading": "Agency metadata",
@@ -120,5 +124,13 @@
   "metric_stops_stop_outcome_searches": "Searches (stops section)",
   "metric_stops_stop_outcome_warning": "Warning (stops section)",
   "agency_section_label": "Section",
-  "agency_table_label": "Table"
+  "agency_table_label": "Table",
+  "agency_stop_volume_lead": "{agency} had {stops} stops in {year}",
+  "agency_stop_volume_segment_sentence": "putting it in the {segment} of departments by stop volume",
+  "agency_stop_volume_segment_top": "top 20%",
+  "agency_stop_volume_segment_middle": "middle 60%",
+  "agency_stop_volume_segment_bottom": "bottom 20%",
+  "agency_stop_volume_ranked": "Ranked #{rank} out of {total} departments.",
+  "agency_stop_volume_ranked_simple": "Ranked #{rank}.",
+  "agency_stop_volume_rank_highest": "It is the highest volume agency in the state."
 }
