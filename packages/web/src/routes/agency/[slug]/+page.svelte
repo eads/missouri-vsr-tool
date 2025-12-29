@@ -3,7 +3,11 @@
 </svelte:head>
 
 <script>
+  import { Grid, PlainTableCssTheme } from "@mediakular/gridcraft";
   import AgencyMap from "$lib/components/AgencyMap.svelte";
+  import GridMetricCell from "$lib/components/grid/GridMetricCell.svelte";
+  import GridTextCell from "$lib/components/grid/GridTextCell.svelte";
+  import GridValueCell from "$lib/components/grid/GridValueCell.svelte";
   import MetricChartModal from "$lib/components/MetricChartModal.svelte";
   import { onMount } from "svelte";
   import * as m from "$lib/paraglide/messages";
@@ -75,6 +79,11 @@
   let selectedYear = "";
   let selectedEntries = [];
   let metricGroups = [];
+  let gridRows = [];
+  let gridColumns = [];
+  let gridFilters = [];
+  let groupBy = "section_id";
+  let metricSearch = "";
   let geocodeBlocks = [];
 
   $: agencyData = data.data;
@@ -116,6 +125,105 @@
 
   $: selectedEntries = selectedYear ? rowsByYear[selectedYear] ?? [] : [];
   $: metricGroups = getMetricGroups(selectedEntries);
+  $: gridRows = metricGroups.map((metric) => {
+    const isPercentageMetric = metric.key.endsWith("-percentage");
+    const columns = normalizeMetric(metric.base, { isPercentage: isPercentageMetric });
+    const percentageColumns = metric.percentage
+      ? normalizeMetric(metric.percentage, { isPercentage: true })
+      : null;
+    const sectionValue = metric.base?.section ?? "";
+    const sectionId = metric.base?.section_id ?? sectionValue ?? "";
+    const row = {
+      id: metric.base?.row_id ?? metric.key,
+      metricKey: metric.key,
+      section: formatValue(sectionValue),
+      section_id: sectionId === null || sectionId === undefined ? "" : String(sectionId),
+      metric: metric.base?.metric ? formatValue(metric.base?.metric) : metricLabelForKey(metric.key),
+      table: formatValue(metric.base?.table),
+    };
+
+    columnKeys.forEach((label) => {
+      const percentageValue = percentageColumns?.[label];
+      const rankValue = getMetricValue(metric.rank, label);
+      const percentileValue = getMetricValue(metric.percentile, label);
+      row[label] = {
+        value: columns[label],
+        pct: hasSupplementValue(percentageValue) ? percentageValue : "",
+        rank: hasSupplementValue(rankValue) ? formatValue(rankValue) : "",
+        percentile: hasSupplementValue(percentileValue) ? formatPercentile(percentileValue) : "",
+      };
+    });
+
+    return row;
+  });
+
+  $: gridColumns = [
+    {
+      key: "section_id",
+      title: sectionLabel(),
+      accessor: (row) => ({
+        value: row.section,
+        id: row.section_id,
+      }),
+      sortValue: (row) => row.section ?? "",
+      renderComponent: GridTextCell,
+    },
+    {
+      key: "metric",
+      title: agency_metric_header(),
+      accessor: (row) => ({
+        value: row.metric,
+        metricKey: row.metricKey,
+        onOpen: openMetric,
+      }),
+      renderComponent: GridMetricCell,
+    },
+    ...columnKeys.map((label) => ({
+      key: label,
+      title: raceLabel(label),
+      accessor: (row) => ({
+        ...row[label],
+        metricKey: row.metricKey,
+        onOpen: openMetric,
+      }),
+      renderComponent: GridValueCell,
+    })),
+    {
+      key: "table",
+      title: tableLabel(),
+      accessor: (row) => ({
+        value: row.table,
+        metricKey: row.metricKey,
+        onOpen: openMetric,
+        variant: "table",
+      }),
+      renderComponent: GridTextCell,
+    },
+  ];
+
+  $: {
+    const trimmed = metricSearch.trim().toLowerCase();
+    if (!trimmed) {
+      gridFilters = [];
+    } else {
+      gridFilters = [
+        {
+          key: "metric-search",
+          columns: ["metric"],
+          filter: (columnValue) => {
+            if (columnValue === null || columnValue === undefined) return false;
+            const value =
+              typeof columnValue === "object" && columnValue !== null
+                ? columnValue.value
+                : columnValue;
+            if (value === null || value === undefined) return false;
+            return String(value).toLowerCase().includes(trimmed);
+          },
+          active: true,
+        },
+      ];
+    }
+  }
 
   const formatValue = (value, { isPercentage = false } = {}) => {
     if (value === null || value === undefined) return "—";
@@ -637,13 +745,6 @@
     }
   };
 
-  const handleRowKeydown = (event, metricKey) => {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      openMetric(metricKey);
-    }
-  };
-
   const selectYear = (year) => {
     selectedYear = year;
   };
@@ -787,118 +888,57 @@
         {#if metricGroups.length === 0}
           <p class="mt-4 text-sm text-slate-500">{agency_no_rows()}</p>
         {:else}
-          <div class="mb-6 max-w-full overflow-x-auto overflow-y-visible rounded-xl border border-slate-200 bg-white md:mx-[calc(50%-50vw+2rem)] md:w-[calc(100vw-4rem)] md:max-w-none">
-            <div
-              class="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-slate-50 px-3 py-2 sm:px-4"
-              role="tablist"
-              aria-label={agency_yearly_data_heading()}
-            >
-              {#each years as year}
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={year === selectedYear}
-                  class={`rounded-full border px-3 py-1 text-[11px] font-semibold transition sm:text-xs ${
-                    year === selectedYear
-                      ? "border-slate-900 bg-slate-900 text-white"
-                      : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900"
-                  }`}
-                  on:click={() => selectYear(year)}
-                >
-                  {year}
-                </button>
-              {/each}
+          <div class="mb-6 max-w-full overflow-hidden rounded-xl border border-slate-200 bg-white md:mx-[calc(50%-50vw+2rem)] md:w-[calc(100vw-4rem)] md:max-w-none">
+            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-3 py-2 sm:px-4">
+              <div role="tablist" aria-label={agency_yearly_data_heading()} class="flex flex-wrap items-center gap-2">
+                {#each years as year}
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={year === selectedYear}
+                    class={`rounded-full border px-3 py-1 text-[11px] font-semibold transition sm:text-xs ${
+                      year === selectedYear
+                        ? "border-slate-900 bg-slate-900 text-white"
+                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900"
+                    }`}
+                    on:click={() => selectYear(year)}
+                  >
+                    {year}
+                  </button>
+                {/each}
+              </div>
+              <div class="flex w-full sm:w-auto">
+                <input
+                  type="search"
+                  class="h-8 w-full rounded-full border border-slate-200 bg-white px-3 text-xs text-slate-700 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none sm:w-52 sm:text-sm"
+                  placeholder={m?.agency_metric_search_placeholder?.() ?? "Search metrics"}
+                  aria-label={m?.agency_metric_search_label?.() ?? "Search metrics"}
+                  bind:value={metricSearch}
+                />
+              </div>
             </div>
-            <table class="w-full min-w-full table-auto border-separate border-spacing-0 sm:min-w-max">
-              <thead class="bg-slate-100">
-                <tr>
-                  <th
-                    class="w-px bg-slate-100 px-2 py-2 text-left text-[10px] font-semibold uppercase tracking-wide text-slate-500 sm:px-4 sm:text-xs"
-                  >
-                    {sectionLabel()}
-                  </th>
-                  <th
-                    class="w-[180px] max-w-[220px] bg-slate-100 px-2 py-2 text-left text-xs font-semibold text-slate-700 sm:px-4 sm:text-sm"
-                  >
-                    {agency_metric_header()}
-                  </th>
-                  {#each columnKeys as label}
-                    <th
-                      class="min-w-[120px] bg-slate-100 px-2 py-2 text-left text-xs font-semibold text-slate-700 sm:px-4 sm:text-sm"
-                    >
-                      {raceLabel(label)}
-                    </th>
-                  {/each}
-                  <th
-                    class="min-w-[160px] bg-slate-100 px-2 py-2 text-left text-[10px] font-semibold uppercase tracking-wide text-slate-500 sm:px-4 sm:text-xs"
-                  >
-                    {tableLabel()}
-                  </th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-slate-200">
-              {#each metricGroups as metric}
-                {@const isPercentageMetric = metric.key.endsWith("-percentage")}
-                {@const columns = normalizeMetric(metric.base, { isPercentage: isPercentageMetric })}
-                {@const percentageColumns = metric.percentage
-                  ? normalizeMetric(metric.percentage, { isPercentage: true })
-                  : null}
-                <tr
-                  class="cursor-pointer hover:bg-slate-50"
-                  role="button"
-                  tabindex="0"
-                  on:click={() => openMetric(metric.key)}
-                  on:keydown={(event) => handleRowKeydown(event, metric.key)}
-                >
-                  <td
-                    class="w-px px-2 py-2 align-top text-[10px] text-slate-500 sm:px-4 sm:py-3 sm:text-xs whitespace-normal break-words leading-tight"
-                  >
-                    {formatValue(metric.base?.section)}
-                  </td>
-                  <td
-                    class="w-[180px] max-w-[220px] px-2 py-2 align-top text-xs font-medium text-slate-700 sm:px-4 sm:py-3 sm:text-sm whitespace-normal break-words leading-tight"
-                  >
-                    {metric.base?.metric ? formatValue(metric.base?.metric) : metricLabelForKey(metric.key)}
-                  </td>
-                  {#each columnKeys as label}
-                    {@const percentageValue = percentageColumns?.[label]}
-                    {@const rankValue = getMetricValue(metric.rank, label)}
-                    {@const percentileValue = getMetricValue(metric.percentile, label)}
-                    {@const showPctTot = hasSupplementValue(percentageValue)}
-                    {@const showRank = hasSupplementValue(rankValue)}
-                    {@const showPercentile = hasSupplementValue(percentileValue)}
-                    <td class="min-w-[120px] px-2 py-2 align-top sm:px-4 sm:py-3">
-                      <div class="flex flex-col gap-0.5">
-                        <span class="text-sm font-mono text-slate-900 tabular-nums whitespace-nowrap sm:text-base">
-                          {columns[label]}
-                        </span>
-                        {#if showPctTot || showRank || showPercentile}
-                          <span class="text-[10px] text-slate-500 sm:text-xs sm:text-slate-500">
-                            {#if showPctTot}
-                              <span class="block">{percentageValue} of tot</span>
-                            {/if}
-                            {#if showRank}
-                              <span class="block">
-                                rank: {formatValue(rankValue)}
-                              </span>
-                            {/if}
-                            {#if showPercentile}
-                              <span class="block">
-                                %tile: {formatPercentile(percentileValue)}
-                              </span>
-                            {/if}
-                          </span>
-                        {/if}
-                      </div>
-                    </td>
-                  {/each}
-                  <td class="min-w-[160px] px-2 py-2 align-top text-[10px] text-slate-500 sm:px-4 sm:py-3 sm:text-xs">
-                    {formatValue(metric.base?.table)}
-                  </td>
-                </tr>
-              {/each}
-              </tbody>
-            </table>
+            <div
+              class="gridcraft-table"
+              style="
+                --gc-main-color: #ffffff;
+                --gc-secondary-color: #f8fafc;
+                --gc-tertiary-color: #ffffff;
+                --gc-text-color: #0f172a;
+                --gc-th-font-size: 0.65rem;
+                --gc-th-padding: 0.4rem 0.6rem;
+                --gc-th-text-transform: uppercase;
+                --gc-td-padding: 0.45rem 0.6rem;
+                --gc-table-radius: 0px;
+              "
+            >
+              <Grid
+                data={gridRows}
+                columns={gridColumns}
+                filters={gridFilters}
+                groupBy={groupBy}
+                theme={PlainTableCssTheme}
+              />
+            </div>
           </div>
         {/if}
       </article>

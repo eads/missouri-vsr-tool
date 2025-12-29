@@ -24,6 +24,8 @@
   "agency_entry_label": "Entrada",
   "agency_metric_header": "M\u00e9trica",
   "agency_view_full_json": "Ver JSON completo",
+  "agency_metric_search_placeholder": "Buscar m\u00e9tricas",
+  "agency_metric_search_label": "Buscar m\u00e9tricas",
   "modal_metric_label": "M\u00e9trica",
   "modal_close": "Cerrar",
   "modal_no_data": "No hay datos disponibles para esta m\u00e9trica.",
