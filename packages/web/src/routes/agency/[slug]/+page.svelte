@@ -703,7 +703,7 @@
       {/if}
       <dl class="divide-y divide-slate-100">
         {#if showJurisdiction}
-          <div class="grid gap-1 py-1.5 sm:grid-cols-[110px_1fr] sm:items-start">
+          <div class="grid gap-1 py-1.5 grid-cols-[110px_1fr] items-start">
             <dt class="text-[11px] uppercase tracking-[0.2em] text-slate-400">
               {agency_jurisdiction_label()}
             </dt>
@@ -712,7 +712,7 @@
             </dd>
           </div>
         {/if}
-        <div class="grid gap-1 py-1.5 sm:grid-cols-[110px_1fr] sm:items-start">
+        <div class="grid gap-1 py-1.5 grid-cols-[110px_1fr] items-start">
           <dt class="text-[11px] uppercase tracking-[0.2em] text-slate-400">
             {agency_type_label()}
           </dt>
@@ -720,7 +720,7 @@
             {agencyType || "—"}
           </dd>
         </div>
-        <div class="grid gap-1 py-1.5 sm:grid-cols-[110px_1fr] sm:items-start">
+        <div class="grid gap-1 py-1.5 grid-cols-[110px_1fr] items-start">
           <dt class="text-[11px] uppercase tracking-[0.2em] text-slate-400">
             {agency_address_label()}
           </dt>
@@ -747,7 +747,7 @@
             {/if}
           </dd>
         </div>
-        <div class="grid gap-1 py-1.5 sm:grid-cols-[110px_1fr] sm:items-start">
+        <div class="grid gap-1 py-1.5 grid-cols-[110px_1fr] items-start">
           <dt class="text-[11px] uppercase tracking-[0.2em] text-slate-400">
             {agency_phone_label()}
           </dt>
