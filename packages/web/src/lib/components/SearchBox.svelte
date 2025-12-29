@@ -27,7 +27,10 @@
     if (!Number.isFinite(numeric)) return null;
     return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(numeric);
   };
-  const toSubLabel = (item) => [item?.city].filter(Boolean).join(" • ");
+  const toSubLabel = (item) =>
+    [item?.geocode_address_county, item?.county, item?.county_name]
+      .filter(Boolean)
+      .join(" • ");
   const toSlug = (item) => item?.agency_slug || item?.slug || item?.id;
   const normalizeText = (value) =>
     (value || "")
@@ -49,6 +52,9 @@
       item?.canonical_name,
       item?.agency_slug,
       ...(item?.names || []),
+      item?.geocode_address_county,
+      item?.county,
+      item?.county_name,
       item?.city,
       item?.zip,
     ]

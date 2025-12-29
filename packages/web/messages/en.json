@@ -118,5 +118,7 @@
   "metric_stops_stop_outcome_contraband": "Contraband (stops section)",
   "metric_stops_stop_outcome_no_action": "No Action (stops section)",
   "metric_stops_stop_outcome_searches": "Searches (stops section)",
-  "metric_stops_stop_outcome_warning": "Warning (stops section)"
+  "metric_stops_stop_outcome_warning": "Warning (stops section)",
+  "agency_section_label": "Section",
+  "agency_table_label": "Table"
 }

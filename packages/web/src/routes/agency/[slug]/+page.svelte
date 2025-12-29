@@ -8,7 +8,6 @@
   import { onMount } from "svelte";
   import * as m from "$lib/paraglide/messages";
   import {
-    agency_entry_label,
     agency_geocode_summary,
     agency_location_heading,
     agency_map_loading,
@@ -16,8 +15,6 @@
     agency_metric_header,
     agency_no_rows,
     agency_preview_label,
-    agency_percentile_label,
-    agency_rank_label,
     agency_slug_label,
     agency_title_suffix,
     agency_view_full_json,
@@ -25,6 +22,7 @@
     race_asian,
     race_black,
     race_hispanic,
+    race_native_american,
     race_other,
     race_total,
     race_white,
@@ -54,6 +52,10 @@
   const numberFormatter = new Intl.NumberFormat(undefined, {
     maximumFractionDigits: 1,
   });
+  const percentFormatter = new Intl.NumberFormat(undefined, {
+    style: "percent",
+    maximumFractionDigits: 1,
+  });
 
   let agencyData;
   let metadata;
@@ -65,6 +67,9 @@
   let rows = [];
   let rowsByYear = {};
   let years = [];
+  let selectedYear = "";
+  let selectedEntries = [];
+  let metricGroups = [];
   let geocodeBlocks = [];
 
   $: agencyData = data.data;
@@ -100,15 +105,24 @@
     return compareStrings(String(a), String(b));
   });
 
-  const formatValue = (value) => {
+  $: if (years.length && (!selectedYear || !years.includes(selectedYear))) {
+    selectedYear = years[0];
+  }
+
+  $: selectedEntries = selectedYear ? rowsByYear[selectedYear] ?? [] : [];
+  $: metricGroups = getMetricGroups(selectedEntries);
+
+  const formatValue = (value, { isPercentage = false } = {}) => {
     if (value === null || value === undefined) return "—";
+    const formatNumeric = (numeric) =>
+      isPercentage ? percentFormatter.format(numeric) : numberFormatter.format(numeric);
     if (typeof value === "number" && Number.isFinite(value)) {
-      return numberFormatter.format(value);
+      return formatNumeric(value);
     }
     if (typeof value === "string") {
       const numeric = Number(value);
       if (value.trim() !== "" && Number.isFinite(numeric)) {
-        return numberFormatter.format(numeric);
+        return formatNumeric(numeric);
       }
       return value;
     }
@@ -118,7 +132,15 @@
     return JSON.stringify(value);
   };
 
-  const columnKeys = ["Total", "White", "Black", "Hispanic", "Asian", "Other"];
+  const columnKeys = [
+    "Total",
+    "White",
+    "Black",
+    "Hispanic",
+    "Native American",
+    "Asian",
+    "Other",
+  ];
   const chartRaceKeys = columnKeys.filter((label) => label !== "Total");
   const priorityPrefix = "rates--totals-";
 
@@ -176,6 +198,11 @@
     return labelFn ? labelFn() : humanizeMetricSlug(slug);
   };
 
+  const sectionLabel = () =>
+    typeof m.agency_section_label === "function" ? m.agency_section_label() : "Section";
+  const tableLabel = () =>
+    typeof m.agency_table_label === "function" ? m.agency_table_label() : "Table";
+
   const raceLabel = (key) => {
     switch (key) {
       case "Total":
@@ -186,6 +213,8 @@
         return race_black();
       case "Hispanic":
         return race_hispanic();
+      case "Native American":
+        return race_native_american();
       case "Asian":
         return race_asian();
       case "Other":
@@ -196,17 +225,19 @@
   };
 
   const metricSuffixes = [
+    { suffix: "-percentage", type: "percentage", priority: 0 },
     { suffix: "-rank", type: "rank", priority: 0 },
     { suffix: "-rank-no-mshp", type: "rank", priority: 1 },
     { suffix: "-percentile", type: "percentile", priority: 0 },
     { suffix: "-percentile-no-mshp", type: "percentile", priority: 1 },
   ];
 
-  const getMetricGroups = (entry) => {
+  const getMetricGroups = (entries) => {
     const groups = {};
 
-    Object.entries(entry).forEach(([key, value]) => {
-      if (key === "year") return;
+    (entries || []).forEach((entry) => {
+      const key = entry?.slug;
+      if (!key) return;
       let baseKey = key;
       let type = "base";
       let priority = 0;
@@ -224,8 +255,10 @@
         groups[baseKey] = {
           key: baseKey,
           base: undefined,
+          percentage: undefined,
           rank: undefined,
           percentile: undefined,
+          percentagePriority: Infinity,
           rankPriority: Infinity,
           percentilePriority: Infinity,
         };
@@ -234,15 +267,20 @@
       const group = groups[baseKey];
 
       if (type === "base") {
-        group.base = value;
+        group.base = entry;
+      } else if (type === "percentage") {
+        if (priority < group.percentagePriority) {
+          group.percentage = entry;
+          group.percentagePriority = priority;
+        }
       } else if (type === "rank") {
         if (priority < group.rankPriority) {
-          group.rank = value;
+          group.rank = entry;
           group.rankPriority = priority;
         }
       } else if (type === "percentile") {
         if (priority < group.percentilePriority) {
-          group.percentile = value;
+          group.percentile = entry;
           group.percentilePriority = priority;
         }
       }
@@ -258,12 +296,13 @@
       });
   };
 
-  const normalizeMetric = (value) => {
+  const normalizeMetric = (value, { isPercentage = false } = {}) => {
     const base = {
       Total: "—",
       White: "—",
       Black: "—",
       Hispanic: "—",
+      "Native American": "—",
       Asian: "—",
       Other: "—",
     };
@@ -273,28 +312,56 @@
     }
 
     if (typeof value !== "object" || Array.isArray(value)) {
-      return { ...base, Total: formatValue(value) };
+      return { ...base, Total: formatValue(value, { isPercentage }) };
     }
 
     const record = value;
     return {
-      Total: formatValue(record.Total ?? record.total),
-      White: formatValue(record.White ?? record.white),
-      Black: formatValue(record.Black ?? record.black),
-      Hispanic: formatValue(record.Hispanic ?? record.hispanic),
-      Asian: formatValue(record.Asian ?? record.asian),
-      Other: formatValue(record.Other ?? record.other),
+      Total: formatValue(record.Total ?? record.total, { isPercentage }),
+      White: formatValue(record.White ?? record.white, { isPercentage }),
+      Black: formatValue(record.Black ?? record.black, { isPercentage }),
+      Hispanic: formatValue(record.Hispanic ?? record.hispanic, { isPercentage }),
+      "Native American": formatValue(
+        record["Native American"] ?? record.native_american ?? record["native american"],
+        { isPercentage }
+      ),
+      Asian: formatValue(record.Asian ?? record.asian, { isPercentage }),
+      Other: formatValue(record.Other ?? record.other, { isPercentage }),
     };
   };
 
   const hasSupplementValue = (value) =>
     value !== null && value !== undefined && value !== "—" && value !== "";
 
+  const getMetricValue = (entry, label) => {
+    if (entry === null || entry === undefined) return null;
+    if (typeof entry !== "object" || Array.isArray(entry)) return entry;
+    if (label === "Native American") {
+      return entry["Native American"] ?? entry.native_american ?? entry["native american"];
+    }
+    const lower = label.toLowerCase();
+    return entry[label] ?? entry[lower];
+  };
+
+  const formatPercentile = (value) => {
+    const numeric = typeof value === "string" ? Number(value) : value;
+    if (!Number.isFinite(numeric)) return formatValue(value);
+    const rounded = Math.round(numeric);
+    const mod100 = rounded % 100;
+    let suffix = "th";
+    if (mod100 < 11 || mod100 > 13) {
+      const mod10 = rounded % 10;
+      if (mod10 === 1) suffix = "st";
+      else if (mod10 === 2) suffix = "nd";
+      else if (mod10 === 3) suffix = "rd";
+    }
+    return `${rounded}${suffix}`;
+  };
+
   let activeMetricKey = "";
   let activeMetricLabel = "";
 
-  const hasMetricKey = (metricKey) =>
-    rows.some((row) => row && Object.prototype.hasOwnProperty.call(row, metricKey));
+  const hasMetricKey = (metricKey) => rows.some((row) => row?.slug === metricKey);
 
   const setHash = (metricKey) => {
     if (typeof window === "undefined") return;
@@ -333,6 +400,11 @@
       openMetric(metricKey);
     }
   };
+
+  const selectYear = (year) => {
+    selectedYear = year;
+  };
+
 
   const getHashMetric = () => {
     if (typeof window === "undefined") return "";
@@ -382,19 +454,150 @@
 
   {#if metadata && metadataEntries.length > 0}
     <section class="mb-10">
-      <h2 class="mb-4 text-xl font-semibold text-slate-900">{agency_metadata_heading()}</h2>
-      <dl class="grid gap-3">
-        {#each metadataEntries as [key, value]}
-          <div
-            class="grid gap-2 rounded-xl border border-slate-200 bg-white p-4 md:grid-cols-[minmax(160px,1fr)_2fr] md:gap-4"
-          >
-            <dt class="text-sm font-semibold text-slate-700">{key}</dt>
-            <dd class="text-sm text-slate-600">{formatValue(value)}</dd>
-          </div>
-        {/each}
-      </dl>
+      <details class="rounded-xl border border-slate-200 bg-white p-4">
+        <summary class="cursor-pointer text-sm font-semibold text-slate-900">
+          {agency_metadata_heading()}
+        </summary>
+        <dl class="mt-4 grid gap-3">
+          {#each metadataEntries as [key, value]}
+            <div
+              class="grid gap-2 rounded-xl border border-slate-200 bg-white p-4 md:grid-cols-[minmax(160px,1fr)_2fr] md:gap-4"
+            >
+              <dt class="text-sm font-semibold text-slate-700">{key}</dt>
+              <dd class="text-sm text-slate-600">{formatValue(value)}</dd>
+            </div>
+          {/each}
+        </dl>
+      </details>
     </section>
   {/if}
+
+  <section class="mb-10">
+    <h2 class="mb-4 text-xl font-semibold text-slate-900">{agency_yearly_data_heading()}</h2>
+    {#if years.length === 0}
+      <p class="text-sm text-slate-500">{agency_no_rows()}</p>
+    {:else}
+      <article class="relative mb-8">
+        {#if metricGroups.length === 0}
+          <p class="mt-4 text-sm text-slate-500">{agency_no_rows()}</p>
+        {:else}
+          <div class="mb-6 max-w-full overflow-x-auto overflow-y-visible rounded-xl border border-slate-200 bg-white md:mx-[calc(50%-50vw+2rem)] md:w-[calc(100vw-4rem)] md:max-w-none">
+            <div
+              class="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-slate-50 px-3 py-2 sm:px-4"
+              role="tablist"
+              aria-label={agency_yearly_data_heading()}
+            >
+              {#each years as year}
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={year === selectedYear}
+                  class={`rounded-full border px-3 py-1 text-[11px] font-semibold transition sm:text-xs ${
+                    year === selectedYear
+                      ? "border-slate-900 bg-slate-900 text-white"
+                      : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900"
+                  }`}
+                  on:click={() => selectYear(year)}
+                >
+                  {year}
+                </button>
+              {/each}
+            </div>
+            <table class="w-full min-w-full table-auto border-separate border-spacing-0 sm:min-w-max">
+              <thead class="bg-slate-100">
+                <tr>
+                  <th
+                    class="w-px bg-slate-100 px-2 py-2 text-left text-[10px] font-semibold uppercase tracking-wide text-slate-500 sm:px-4 sm:text-xs"
+                  >
+                    {sectionLabel()}
+                  </th>
+                  <th
+                    class="w-[180px] max-w-[220px] bg-slate-100 px-2 py-2 text-left text-xs font-semibold text-slate-700 sm:px-4 sm:text-sm"
+                  >
+                    {agency_metric_header()}
+                  </th>
+                  {#each columnKeys as label}
+                    <th
+                      class="min-w-[120px] bg-slate-100 px-2 py-2 text-left text-xs font-semibold text-slate-700 sm:px-4 sm:text-sm"
+                    >
+                      {raceLabel(label)}
+                    </th>
+                  {/each}
+                  <th
+                    class="min-w-[160px] bg-slate-100 px-2 py-2 text-left text-[10px] font-semibold uppercase tracking-wide text-slate-500 sm:px-4 sm:text-xs"
+                  >
+                    {tableLabel()}
+                  </th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-200">
+              {#each metricGroups as metric}
+                {@const isPercentageMetric = metric.key.endsWith("-percentage")}
+                {@const columns = normalizeMetric(metric.base, { isPercentage: isPercentageMetric })}
+                {@const percentageColumns = metric.percentage
+                  ? normalizeMetric(metric.percentage, { isPercentage: true })
+                  : null}
+                <tr
+                  class="cursor-pointer hover:bg-slate-50"
+                  role="button"
+                  tabindex="0"
+                  on:click={() => openMetric(metric.key)}
+                  on:keydown={(event) => handleRowKeydown(event, metric.key)}
+                >
+                  <td
+                    class="w-px px-2 py-2 align-top text-[10px] text-slate-500 sm:px-4 sm:py-3 sm:text-xs whitespace-normal break-words leading-tight"
+                  >
+                    {formatValue(metric.base?.section)}
+                  </td>
+                  <td
+                    class="w-[180px] max-w-[220px] px-2 py-2 align-top text-xs font-medium text-slate-700 sm:px-4 sm:py-3 sm:text-sm whitespace-normal break-words leading-tight"
+                  >
+                    {metric.base?.metric ? formatValue(metric.base?.metric) : metricLabelForKey(metric.key)}
+                  </td>
+                  {#each columnKeys as label}
+                    {@const percentageValue = percentageColumns?.[label]}
+                    {@const rankValue = getMetricValue(metric.rank, label)}
+                    {@const percentileValue = getMetricValue(metric.percentile, label)}
+                    {@const showPctTot = hasSupplementValue(percentageValue)}
+                    {@const showRank = hasSupplementValue(rankValue)}
+                    {@const showPercentile = hasSupplementValue(percentileValue)}
+                    <td class="min-w-[120px] px-2 py-2 align-top sm:px-4 sm:py-3">
+                      <div class="flex flex-col gap-0.5">
+                        <span class="text-sm font-mono text-slate-900 tabular-nums whitespace-nowrap sm:text-base">
+                          {columns[label]}
+                        </span>
+                        {#if showPctTot || showRank || showPercentile}
+                          <span class="text-[10px] text-slate-500 sm:text-xs sm:text-slate-500">
+                            {#if showPctTot}
+                              <span class="block">{percentageValue} of tot</span>
+                            {/if}
+                            {#if showRank}
+                              <span class="block">
+                                rank: {formatValue(rankValue)}
+                              </span>
+                            {/if}
+                            {#if showPercentile}
+                              <span class="block">
+                                %tile: {formatPercentile(percentileValue)}
+                              </span>
+                            {/if}
+                          </span>
+                        {/if}
+                      </div>
+                    </td>
+                  {/each}
+                  <td class="min-w-[160px] px-2 py-2 align-top text-[10px] text-slate-500 sm:px-4 sm:py-3 sm:text-xs">
+                    {formatValue(metric.base?.table)}
+                  </td>
+                </tr>
+              {/each}
+              </tbody>
+            </table>
+          </div>
+        {/if}
+      </article>
+    {/if}
+  </section>
 
   {#each geocodeBlocks as block}
     <section class="mb-10">
@@ -409,99 +612,6 @@
       </details>
     </section>
   {/each}
-
-  <section class="mb-10">
-    <h2 class="mb-4 text-xl font-semibold text-slate-900">{agency_yearly_data_heading()}</h2>
-    {#if years.length === 0}
-      <p class="text-sm text-slate-500">{agency_no_rows()}</p>
-    {:else}
-      {#each years as year}
-        <article class="relative mb-8">
-          <h3
-            class="flex h-7 w-full items-center border-b border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-900"
-          >
-            {year}
-          </h3>
-          {#each rowsByYear[year] as entry, entryIndex}
-            {#if rowsByYear[year].length > 1}
-              <p class="mb-2 mt-4 text-sm text-slate-500">
-                {agency_entry_label()} {entryIndex + 1}
-              </p>
-            {/if}
-            <div class="mb-6 max-w-full overflow-x-auto overflow-y-visible rounded-xl border border-slate-200 bg-white">
-              <table class="min-w-full table-auto border-separate border-spacing-0">
-                <thead class="bg-slate-100">
-                  <tr>
-                    <th
-                      class="bg-slate-100 px-2 py-2 text-left text-xs font-semibold text-slate-700 sm:px-4 sm:text-sm"
-                    >
-                      {agency_metric_header()}
-                    </th>
-                    {#each columnKeys as label}
-                      <th
-                        class="bg-slate-100 px-2 py-2 text-left text-xs font-semibold text-slate-700 sm:px-4 sm:text-sm"
-                      >
-                        {raceLabel(label)}
-                      </th>
-                    {/each}
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-200">
-                {#each getMetricGroups(entry) as metric}
-                  {@const columns = normalizeMetric(metric.base)}
-                  {@const rankColumns = metric.rank ? normalizeMetric(metric.rank) : null}
-                  {@const percentileColumns = metric.percentile
-                    ? normalizeMetric(metric.percentile)
-                    : null}
-                  <tr
-                    class="cursor-pointer hover:bg-slate-50"
-                    role="button"
-                    tabindex="0"
-                    on:click={() => openMetric(metric.key)}
-                    on:keydown={(event) => handleRowKeydown(event, metric.key)}
-                  >
-                    <td
-                      class="px-2 py-2 text-xs font-medium text-slate-700 sm:px-4 sm:py-3 sm:text-sm whitespace-normal break-words leading-tight"
-                    >
-                      {metricLabelForKey(metric.key)}
-                    </td>
-                    {#each columnKeys as label}
-                      {@const rankValue = rankColumns?.[label]}
-                      {@const percentileValue = percentileColumns?.[label]}
-                      {@const showRank = hasSupplementValue(rankValue)}
-                      {@const showPercentile = hasSupplementValue(percentileValue)}
-                      <td class="px-2 py-2 sm:px-4 sm:py-3">
-                        <div class="flex flex-col gap-0.5">
-                          <span class="text-sm font-mono text-slate-900 tabular-nums whitespace-nowrap sm:text-base">
-                            {columns[label]}
-                          </span>
-                          {#if showRank || showPercentile}
-                            <span class="text-[10px] text-slate-500 sm:text-xs sm:text-slate-500">
-                              {#if showRank}
-                                <span class="block">
-                                  {agency_rank_label()} {rankValue}
-                                </span>
-                              {/if}
-                              {#if showPercentile}
-                                <span class="block">
-                                  {agency_percentile_label()} {percentileValue}
-                                </span>
-                              {/if}
-                            </span>
-                          {/if}
-                        </div>
-                      </td>
-                    {/each}
-                  </tr>
-                {/each}
-                </tbody>
-              </table>
-            </div>
-          {/each}
-        </article>
-      {/each}
-    {/if}
-  </section>
 
   <details class="rounded-xl border border-slate-200 bg-white p-4">
     <summary class="cursor-pointer text-sm font-semibold text-slate-900">

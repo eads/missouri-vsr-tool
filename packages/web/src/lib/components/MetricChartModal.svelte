@@ -63,14 +63,16 @@
 
   $: resolvedRaceKeys = raceKeys.length
     ? raceKeys
-    : ["White", "Black", "Hispanic", "Asian", "Other"];
-  $: sampleValue = rows.find((row) => row?.[metricKey] != null)?.[metricKey];
+    : ["White", "Black", "Hispanic", "Native American", "Asian", "Other"];
+  $: isPercentageMetric = metricKey.endsWith("-percentage");
+  $: metricRows = (rows || []).filter((row) => row?.slug === metricKey);
+  $: sampleValue = metricRows[0];
   $: chartType = chartTypeForMetric(metricKey, sampleValue);
 
-  $: barTotals = rows.reduce((acc, row) => {
+  $: barTotals = metricRows.reduce((acc, row) => {
     const year = row?.year;
     if (!year) return acc;
-    const totalValue = toTotal(row?.[metricKey]);
+    const totalValue = toTotal(row);
     acc[year] = (acc[year] ?? 0) + totalValue;
     return acc;
   }, {});
@@ -79,17 +81,21 @@
 
   $: barData = sortedYears.map((year) => ({
     year: String(year),
-    value: barTotals[year] ?? 0,
+    value: (barTotals[year] ?? 0) * (isPercentageMetric ? 100 : 1),
   }));
 
   const numberFormatter = new Intl.NumberFormat(undefined, {
     maximumFractionDigits: 1,
   });
+  const percentFormatter = new Intl.NumberFormat(undefined, {
+    style: "percent",
+    maximumFractionDigits: 1,
+  });
 
-  const formatNumber = (value) => {
+  const formatNumber = (value, { isPercentage = false } = {}) => {
     if (value === null || value === undefined) return "—";
     if (typeof value !== "number" || !Number.isFinite(value)) return String(value);
-    return numberFormatter.format(value);
+    return isPercentage ? percentFormatter.format(value) : numberFormatter.format(value);
   };
 
   const baselineRaceOrder = [
@@ -139,11 +145,11 @@
     return acc;
   }, {});
 
-  $: agencyTotalsByYear = rows.reduce((acc, row) => {
+  $: agencyTotalsByYear = metricRows.reduce((acc, row) => {
     const year = row?.year;
     if (!year) return acc;
-    const metric = row?.[metricKey];
     if (!acc[year]) acc[year] = {};
+    const metric = row;
     if (metric === null || metric === undefined) return acc;
     if (typeof metric === "number" || typeof metric === "string") {
       acc[year].Total = (acc[year].Total ?? 0) + toNumber(metric);
@@ -317,10 +323,20 @@
                             {raceLabel(entry.metric)}
                           </td>
                           <td class="px-3 py-2">
-                            {formatNumber(agencyTotalsByYear[year]?.[entry.metric])}
+                            {formatNumber(agencyTotalsByYear[year]?.[entry.metric], {
+                              isPercentage: isPercentageMetric,
+                            })}
                           </td>
-                          <td class="px-3 py-2">{formatNumber(entry.mean__no_mshp)}</td>
-                          <td class="px-3 py-2">{formatNumber(entry.median__no_mshp)}</td>
+                          <td class="px-3 py-2">
+                            {formatNumber(entry.mean__no_mshp, {
+                              isPercentage: isPercentageMetric,
+                            })}
+                          </td>
+                          <td class="px-3 py-2">
+                            {formatNumber(entry.median__no_mshp, {
+                              isPercentage: isPercentageMetric,
+                            })}
+                          </td>
                         </tr>
                       {/each}
                     </tbody>
