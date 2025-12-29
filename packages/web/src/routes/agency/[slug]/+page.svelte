@@ -154,7 +154,13 @@
   let jurisdictionDisplay = "";
   let showJurisdiction = false;
   let addressState = "";
-  let stopVolumeSentence = "";
+  let stopVolumeLead = "";
+  let stopVolumeLeadPunctuation = ".";
+  let stopVolumeSegmentLabel = "";
+  let stopVolumeSegmentPrefix = "";
+  let stopVolumeSegmentSuffix = "";
+  let stopVolumeSegmentPunctuation = ".";
+  let stopVolumeRankSentence = "";
   const formatPhone = (value) => {
     const digits = value.replace(/\D+/g, "");
     if (digits.length === 10) {
@@ -231,9 +237,15 @@
 
   $: {
     const latestYear = years.find((year) => Number.isFinite(Number(year)));
-    stopVolumeSentence = "";
+    stopVolumeLead = "";
+    stopVolumeLeadPunctuation = ".";
+    stopVolumeSegmentLabel = "";
+    stopVolumeSegmentPrefix = "";
+    stopVolumeSegmentSuffix = "";
+    stopVolumeSegmentPunctuation = ".";
+    stopVolumeRankSentence = "";
     if (!latestYear) {
-      stopVolumeSentence = "";
+      stopVolumeLead = "";
     } else {
       const yearValue = Number(latestYear);
       const totalEntry = rows.find(
@@ -265,7 +277,7 @@
       const totalValue = getMetricValue(totalEntry, "Total");
       const totalNumeric = typeof totalValue === "string" ? Number(totalValue) : totalValue;
       if (!Number.isFinite(totalNumeric)) {
-        stopVolumeSentence = "";
+        stopVolumeLead = "";
       } else {
         const agencyName = agencyData?.agency ?? data.slug;
         const totalStops = stopCountFormatter.format(totalNumeric);
@@ -274,18 +286,21 @@
           typeof leadFn === "function"
             ? leadFn({ agency: agencyName, stops: totalStops, year: latestYear })
             : `${agencyName} had ${totalStops} stops in ${latestYear}`;
+        stopVolumeLead = lead;
+        stopVolumeLeadPunctuation = /[.!?]$/.test(lead.trim()) ? "" : ".";
 
         const percentileValue = getMetricValue(percentileEntry, "Total");
         const percentileNumeric =
           typeof percentileValue === "string" ? Number(percentileValue) : percentileValue;
         let segmentSentence = "";
+        let segmentLabel = "";
         if (Number.isFinite(percentileNumeric)) {
           const topThreshold = 80;
           const bottomThreshold = 20;
           let segmentKey = "middle";
           if (percentileNumeric >= topThreshold) segmentKey = "top";
           else if (percentileNumeric <= bottomThreshold) segmentKey = "bottom";
-          const segmentLabel =
+          segmentLabel =
             segmentKey === "top"
               ? typeof m?.agency_stop_volume_segment_top === "function"
                 ? m.agency_stop_volume_segment_top()
@@ -303,8 +318,6 @@
               ? segmentFn({ segment: segmentLabel })
               : `putting it in the ${segmentLabel} of departments by stop volume`;
         }
-        const leadSentence = segmentSentence ? `${lead}, ${segmentSentence}.` : `${lead}.`;
-
         const rankValue = getMetricValue(rankEntry, "Total");
         const rankNumeric = typeof rankValue === "string" ? Number(rankValue) : rankValue;
         let rankSentence = "";
@@ -315,7 +328,7 @@
             rankSentence =
               typeof rankHighestFn === "function"
                 ? rankHighestFn()
-                : "Making it the highest volume agency in the state.";
+                : "It is the highest volume agency in the state.";
           } else {
             const rankDisplay = stopCountFormatter.format(rankRounded);
             const agencyCount = Number(data?.agencyCount);
@@ -339,7 +352,25 @@
           }
         }
 
-        stopVolumeSentence = [leadSentence, rankSentence].filter(Boolean).join(" ");
+        if (segmentSentence && segmentLabel) {
+          const segmentIndex = segmentSentence.indexOf(segmentLabel);
+          if (segmentIndex >= 0) {
+            stopVolumeSegmentPrefix = segmentSentence.slice(0, segmentIndex);
+            stopVolumeSegmentLabel = segmentLabel;
+            stopVolumeSegmentSuffix = segmentSentence.slice(
+              segmentIndex + segmentLabel.length
+            );
+            stopVolumeSegmentPunctuation = stopVolumeSegmentSuffix.trim().endsWith(".")
+              ? ""
+              : ".";
+          } else {
+            stopVolumeSegmentPrefix = segmentSentence;
+            stopVolumeSegmentLabel = "";
+            stopVolumeSegmentSuffix = "";
+            stopVolumeSegmentPunctuation = segmentSentence.trim().endsWith(".") ? "" : ".";
+          }
+        }
+        stopVolumeRankSentence = rankSentence;
       }
     }
   }
@@ -654,8 +685,21 @@
 
   <section class="mb-10 grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)] md:items-start">
     <div class="rounded-2xl border border-slate-200 bg-white p-3">
-      {#if stopVolumeSentence}
-        <p class="mb-4 text-xl font-medium text-slate-800 leading-snug">{stopVolumeSentence}</p>
+      {#if stopVolumeLead}
+        <p class="mb-4 text-xl font-normal text-slate-800 leading-snug">
+          {stopVolumeLead}
+          {#if stopVolumeSegmentLabel}
+            {" "}
+            {stopVolumeSegmentPrefix}<strong class="font-semibold text-slate-900"
+              >{stopVolumeSegmentLabel}</strong
+            >{stopVolumeSegmentSuffix}{stopVolumeSegmentPunctuation}
+          {:else}
+            {stopVolumeLeadPunctuation}
+          {/if}
+          {#if stopVolumeRankSentence}
+            {" "}{stopVolumeRankSentence}
+          {/if}
+        </p>
       {/if}
       <dl class="divide-y divide-slate-100">
         {#if showJurisdiction}
