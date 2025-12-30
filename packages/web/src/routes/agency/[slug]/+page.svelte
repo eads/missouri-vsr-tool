@@ -658,7 +658,6 @@
 
   const tableLabelForId = (id) => labelForId("table", id);
   const sectionLabelForId = (id) => labelForId("section", id);
-  };
 
   const sectionLabel = () =>
     typeof m.agency_section_label === "function" ? m.agency_section_label() : "Section";
