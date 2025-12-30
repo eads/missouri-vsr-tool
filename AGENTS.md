@@ -1,0 +1,27 @@
+# Agent Notes
+
+## Web app
+
+- SvelteKit app lives in `packages/web`.
+- Agency page uses Gridcraft for the metrics table (grouped by a synthesized
+  `<table_id>--<section_id>` key).
+- Search/filter is a Gridcraft filter on the metric column.
+
+## Data schema
+
+- Per-agency data is row-based with `row_key` and `row_id`.
+- `row_key` = `<table_id>--<section_id>--<metric_id>`.
+- `row_id` = `<year>-<agency_slug>-<row_key>`.
+- Baselines (`statewide_slug_baselines.json`) also key by `row_key`.
+
+## Translation keys
+
+Report dimension labels use ID-based keys:
+
+- `table_<table_id>`
+- `section_<section_id>`
+- `metric_<metric_id>`
+
+These are generated from `packages/web/static/data/report_dimensions.json` and
+stored in `packages/web/messages/en.json` and `packages/web/messages/es.json`.
+
