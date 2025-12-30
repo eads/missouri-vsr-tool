@@ -323,7 +323,12 @@
     >
       <div class="flex items-start justify-between gap-4">
         <div>
-          <p class="text-xs uppercase tracking-[0.2em] text-slate-500">
+          {#if agencyName}
+            <p class="text-[11px] uppercase tracking-[0.22em] text-slate-400">
+              {agencyName}
+            </p>
+          {/if}
+          <p class={`text-xs uppercase tracking-[0.2em] text-slate-500 ${agencyName ? "mt-2" : ""}`}>
             {modal_metric_label()}
           </p>
           <h2 class="mt-2 text-xl font-semibold text-slate-900">

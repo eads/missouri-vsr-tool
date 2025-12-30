@@ -1,5 +1,5 @@
 <script>
-  import { Chart, Svg, Axis, Spline, Highlight, Tooltip } from "layerchart";
+  import { Chart, Svg, Axis, Spline, Highlight, Tooltip, Points } from "layerchart";
   import { scaleBand } from "d3-scale";
 
   export let lineSeries = [];
@@ -22,6 +22,9 @@
   xScale={scaleBand().paddingInner(0.4).paddingOuter(0.2)}
   yDomain={[0, null]}
   yNice
+  c="race"
+  cDomain={raceKeys}
+  cRange={raceKeys.map(raceColor)}
   padding={{ left: 64, right: 12, bottom: 24, top: 8 }}
   tooltip={{ mode: "quadtree-x" }}
 >
@@ -46,6 +49,7 @@
         stroke={raceColor(series.race)}
       />
     {/each}
+    <Points data={lineData} x="year" y="value" r={4.5} />
     {#each raceKeys as race}
       <Highlight
         y={(d) => lineValuesByYear?.[d?.year]?.[race] ?? null}
