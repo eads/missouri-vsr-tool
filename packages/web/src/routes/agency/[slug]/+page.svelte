@@ -3,13 +3,13 @@
 </svelte:head>
 
 <script>
-  import { Grid, PlainTableCssTheme } from "@mediakular/gridcraft";
+  import { Grid, PagingData, PlainTableCssTheme } from "@mediakular/gridcraft";
   import AgencyMap from "$lib/components/AgencyMap.svelte";
   import GridMetricCell from "$lib/components/grid/GridMetricCell.svelte";
   import GridTextCell from "$lib/components/grid/GridTextCell.svelte";
   import GridValueCell from "$lib/components/grid/GridValueCell.svelte";
   import MetricChartModal from "$lib/components/MetricChartModal.svelte";
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
   import * as m from "$lib/paraglide/messages";
   import {
     agency_geocode_summary,
@@ -82,12 +82,17 @@
   let gridRows = [];
   let gridColumns = [];
   let gridFilters = [];
-  let groupBy = "section_id";
+  let gridPaging = new PagingData(1, 10000, [10000]);
+  let groupBy = "group_id";
   let metricSearch = "";
+  let groupOrderMap = new Map();
+  let autoExpandVersion = 0;
   let geocodeBlocks = [];
+  let agencyCount = 0;
 
   $: agencyData = data.data;
   $: baselines = Array.isArray(data.baselines) ? data.baselines : [];
+  $: agencyCount = Number(data?.agencyCount) || 0;
   $: metadata = agencyData?.agency_metadata;
   $: ({
     geocode_address_response: geocodeAddressResponse,
@@ -125,32 +130,67 @@
 
   $: selectedEntries = selectedYear ? rowsByYear[selectedYear] ?? [] : [];
   $: metricGroups = getMetricGroups(selectedEntries);
+  $: {
+    const priorityGroups = [
+      "rates-by-race__totals",
+      "rates-by-race__rates",
+      "rates-by-race__population",
+    ];
+    groupOrderMap = new Map();
+    let nextIndex = 0;
+    priorityGroups.forEach((key) => {
+      if (!groupOrderMap.has(key)) {
+        groupOrderMap.set(key, nextIndex++);
+      }
+    });
+    metricGroups.forEach((metric) => {
+      const tableValue = metric.base?.table ?? "";
+      const sectionValue = metric.base?.section ?? "";
+      const tableId = metric.base?.table_id ?? tableValue ?? "";
+      const sectionId = metric.base?.section_id ?? sectionValue ?? "";
+      const key = `${tableId}__${sectionId}`;
+      if (!groupOrderMap.has(key)) {
+        groupOrderMap.set(key, nextIndex++);
+      }
+    });
+  }
   $: gridRows = metricGroups.map((metric) => {
     const isPercentageMetric = metric.key.endsWith("-percentage");
     const columns = normalizeMetric(metric.base, { isPercentage: isPercentageMetric });
-    const percentageColumns = metric.percentage
-      ? normalizeMetric(metric.percentage, { isPercentage: true })
-      : null;
+    const tableValue = metric.base?.table ?? "";
     const sectionValue = metric.base?.section ?? "";
+    const tableId = metric.base?.table_id ?? tableValue ?? "";
     const sectionId = metric.base?.section_id ?? sectionValue ?? "";
+    const groupLabelParts = [tableValue, sectionValue].filter(Boolean);
+    const groupLabel = groupLabelParts.length ? groupLabelParts.join(": ") : "—";
+    const groupId = `${tableId}__${sectionId}`;
     const row = {
       id: metric.base?.row_id ?? metric.key,
       metricKey: metric.key,
-      section: formatValue(sectionValue),
-      section_id: sectionId === null || sectionId === undefined ? "" : String(sectionId),
+      group_label: groupLabel,
+      group_id: groupId,
       metric: metric.base?.metric ? formatValue(metric.base?.metric) : metricLabelForKey(metric.key),
-      table: formatValue(metric.base?.table),
     };
 
     columnKeys.forEach((label) => {
-      const percentageValue = percentageColumns?.[label];
       const rankValue = getMetricValue(metric.rank, label);
-      const percentileValue = getMetricValue(metric.percentile, label);
+      let rankDisplay = "";
+      if (hasSupplementValue(rankValue)) {
+        const numeric = typeof rankValue === "string" ? Number(rankValue) : rankValue;
+        const rankFormatted = Number.isFinite(numeric)
+          ? stopCountFormatter.format(Math.round(numeric))
+          : formatValue(rankValue);
+        if (rankFormatted && rankFormatted !== "—") {
+          if (agencyCount > 0) {
+            rankDisplay = `#${rankFormatted}/${stopCountFormatter.format(agencyCount)}`;
+          } else {
+            rankDisplay = `#${rankFormatted}`;
+          }
+        }
+      }
       row[label] = {
         value: columns[label],
-        pct: hasSupplementValue(percentageValue) ? percentageValue : "",
-        rank: hasSupplementValue(rankValue) ? formatValue(rankValue) : "",
-        percentile: hasSupplementValue(percentileValue) ? formatPercentile(percentileValue) : "",
+        rank: rankDisplay,
       };
     });
 
@@ -159,13 +199,13 @@
 
   $: gridColumns = [
     {
-      key: "section_id",
+      key: "group_id",
       title: sectionLabel(),
       accessor: (row) => ({
-        value: row.section,
-        id: row.section_id,
+        value: row.group_label,
+        id: row.group_id,
       }),
-      sortValue: (row) => row.section ?? "",
+      sortValue: (row) => groupOrderMap.get(row.group_id) ?? Number.MAX_SAFE_INTEGER,
       renderComponent: GridTextCell,
     },
     {
@@ -188,18 +228,35 @@
       }),
       renderComponent: GridValueCell,
     })),
-    {
-      key: "table",
-      title: tableLabel(),
-      accessor: (row) => ({
-        value: row.table,
-        metricKey: row.metricKey,
-        onOpen: openMetric,
-        variant: "table",
-      }),
-      renderComponent: GridTextCell,
-    },
   ];
+  $: {
+    const pageSize = Math.max(gridRows.length, 10000);
+    gridPaging.itemsPerPage = pageSize;
+    gridPaging.itemsPerPageOptions = [pageSize];
+    gridPaging.currentPage = 1;
+  }
+
+  const expandDefaultGroups = async () => {
+    if (typeof document === "undefined") return;
+    const desiredGroups = new Set(["rates-by-race__totals", "rates-by-race__rates"]);
+    if (!desiredGroups.size) return;
+    await tick();
+    const groupLabels = Array.from(
+      document.querySelectorAll(".gridcraft-table [data-group-id]")
+    );
+    groupLabels.forEach((label) => {
+      const groupId = label.getAttribute("data-group-id");
+      if (!groupId || !desiredGroups.has(groupId)) return;
+      const row = label.closest("tr");
+      if (!row) return;
+      const toggle = row.querySelector("button");
+      if (!toggle) return;
+      const isCollapsed = row.querySelector(".feather-chevron-right");
+      if (isCollapsed) {
+        toggle.click();
+      }
+    });
+  };
 
   $: {
     const trimmed = metricSearch.trim().toLowerCase();
@@ -694,21 +751,6 @@
     return entry[label] ?? entry[lower];
   };
 
-  const formatPercentile = (value) => {
-    const numeric = typeof value === "string" ? Number(value) : value;
-    if (!Number.isFinite(numeric)) return formatValue(value);
-    const rounded = Math.round(numeric);
-    const mod100 = rounded % 100;
-    let suffix = "th";
-    if (mod100 < 11 || mod100 > 13) {
-      const mod10 = rounded % 10;
-      if (mod10 === 1) suffix = "st";
-      else if (mod10 === 2) suffix = "nd";
-      else if (mod10 === 3) suffix = "rd";
-    }
-    return `${rounded}${suffix}`;
-  };
-
   let activeMetricKey = "";
   let activeMetricLabel = "";
 
@@ -769,11 +811,21 @@
     syncFromHash();
     const handleHashChange = () => syncFromHash();
     window.addEventListener("hashchange", handleHashChange);
+    expandDefaultGroups();
     return () => window.removeEventListener("hashchange", handleHashChange);
   });
 
   $: if (typeof window !== "undefined" && rows.length) {
     syncFromHash();
+  }
+
+  $: if (gridRows.length) {
+    autoExpandVersion += 1;
+    const version = autoExpandVersion;
+    tick().then(() => {
+      if (version !== autoExpandVersion) return;
+      expandDefaultGroups();
+    });
   }
 </script>
 
@@ -888,7 +940,7 @@
         {#if metricGroups.length === 0}
           <p class="mt-4 text-sm text-slate-500">{agency_no_rows()}</p>
         {:else}
-          <div class="mb-6 max-w-full overflow-hidden rounded-xl border border-slate-200 bg-white md:mx-[calc(50%-50vw+2rem)] md:w-[calc(100vw-4rem)] md:max-w-none">
+          <div class="mb-6 max-w-full overflow-visible rounded-xl border border-slate-200 bg-white md:mx-[calc(50%-50vw+2rem)] md:w-[calc(100vw-4rem)] md:max-w-none">
             <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-3 py-2 sm:px-4">
               <div role="tablist" aria-label={agency_yearly_data_heading()} class="flex flex-wrap items-center gap-2">
                 {#each years as year}
@@ -929,6 +981,12 @@
                 --gc-th-text-transform: uppercase;
                 --gc-td-padding: 0.45rem 0.6rem;
                 --gc-table-radius: 0px;
+                --gc-tr-groupby-bg-color: #cbd5e1;
+                --gc-tr-groupby-border: 1px solid #94a3b8;
+                --gc-td-groupby-content-font-size: 0.72rem;
+                --gc-td-groupby-content-font-weight: 700;
+                --gc-td-groupby-content-color: #0f172a;
+                --gc-td-groupby-padding: 0.35rem 0.6rem;
               "
             >
               <Grid
@@ -936,6 +994,8 @@
                 columns={gridColumns}
                 filters={gridFilters}
                 groupBy={groupBy}
+                groupsExpandedDefault={false}
+                paging={gridPaging}
                 theme={PlainTableCssTheme}
               />
             </div>
@@ -999,3 +1059,40 @@
   agencyName={agencyData?.agency ?? data.slug}
   on:close={closeMetric}
 />
+
+<style>
+  :global(.gridcraft-table .gc-table-wrapper) {
+    overflow: auto;
+    max-height: min(70vh, 900px);
+  }
+
+  :global(.gridcraft-table thead) {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+  }
+
+  :global(.gridcraft-table .gc-header-tr th) {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background: var(--gc-secondary-color);
+  }
+
+  :global(.gridcraft-table .gc-table th:first-child) {
+    left: 0;
+    z-index: 4;
+  }
+
+  :global(.gridcraft-table .gc-table td:first-child) {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: var(--gc-main-color);
+    box-shadow: 6px 0 8px -6px rgba(15, 23, 42, 0.15);
+  }
+
+  :global(.gridcraft-table .gc-tr__groupby td:first-child) {
+    background: var(--gc-tr-groupby-bg-color, var(--gc-main-color));
+  }
+</style>
