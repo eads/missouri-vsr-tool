@@ -1,8 +1,8 @@
 <script>
-  import { createEventDispatcher, onDestroy } from "svelte";
-  import { Chart, Svg, Axis, Bars, Highlight } from "layerchart";
-  import { scaleBand } from "d3-scale";
+  import { createEventDispatcher, onDestroy, onMount } from "svelte";
   import {
+    agency_section_label,
+    agency_table_label,
     modal_baseline_agency_fallback,
     modal_baseline_mean_header,
     modal_baseline_median_header,
@@ -22,6 +22,7 @@
     race_total,
     race_white,
   } from "$lib/paraglide/messages";
+  import * as m from "$lib/paraglide/messages";
 
   export let open = false;
   export let metricKey = "";
@@ -33,6 +34,8 @@
 
   const dispatch = createEventDispatcher();
   let backdropEl;
+  let ChartComponent;
+  let chartLoadError = null;
 
   const chartTypeForMetric = (key, sample) => {
     if (!key) return "bar";
@@ -66,23 +69,11 @@
     : ["White", "Black", "Hispanic", "Native American", "Asian", "Other"];
   $: isPercentageMetric = metricKey.endsWith("-percentage");
   $: metricRows = (rows || []).filter((row) => row?.row_key === metricKey);
+  $: metricRowsSorted = metricRows.slice().sort((a, b) => Number(a?.year) - Number(b?.year));
   $: sampleValue = metricRows[0];
   $: chartType = chartTypeForMetric(metricKey, sampleValue);
-
-  $: barTotals = metricRows.reduce((acc, row) => {
-    const year = row?.year;
-    if (!year) return acc;
-    const totalValue = toTotal(row);
-    acc[year] = (acc[year] ?? 0) + totalValue;
-    return acc;
-  }, {});
-
-  $: sortedYears = Object.keys(barTotals).sort((a, b) => Number(a) - Number(b));
-
-  $: barData = sortedYears.map((year) => ({
-    year: String(year),
-    value: (barTotals[year] ?? 0) * (isPercentageMetric ? 100 : 1),
-  }));
+  $: tableId = metricRows[0]?.table_id ?? "";
+  $: sectionId = metricRows[0]?.section_id ?? "";
 
   const numberFormatter = new Intl.NumberFormat(undefined, {
     maximumFractionDigits: 1,
@@ -128,6 +119,78 @@
         return key;
     }
   };
+
+  const labelForId = (kind, id) => {
+    if (!id) return "";
+    const key = `${kind}_${id}`;
+    const fn = m[key];
+    return typeof fn === "function" ? fn() : "";
+  };
+
+  $: tableLabel = labelForId("table", tableId) || tableId;
+  $: sectionLabel = labelForId("section", sectionId) || sectionId;
+
+  const stackRaceKeys = (keys) =>
+    keys.filter((key) => key && key.toLowerCase() !== "total");
+
+  const getRaceValue = (row, race) => {
+    if (!row || !race) return 0;
+    const lower = race.toLowerCase();
+    return toNumber(row[race] ?? row[lower] ?? 0);
+  };
+
+  const raceColors = {
+    White: "#cbd5f5",
+    Black: "#1e293b",
+    Hispanic: "#f59e0b",
+    "Native American": "#10b981",
+    Asian: "#38bdf8",
+    Other: "#a855f7",
+  };
+
+  const raceColor = (race) => raceColors[race] || "#94a3b8";
+
+  $: stackedRaceKeys = stackRaceKeys(resolvedRaceKeys);
+
+  const formatChartValue = (value) => {
+    if (value === null || value === undefined) return "—";
+    if (typeof value !== "number" || !Number.isFinite(value)) return String(value);
+    if (isPercentageMetric) {
+      return `${numberFormatter.format(value * 100)}%`;
+    }
+    return numberFormatter.format(value);
+  };
+
+  const buildStackedData = (rows) => {
+    if (!rows.length || !stackedRaceKeys.length) return [];
+    const result = [];
+    rows.forEach((row) => {
+      const year = row?.year;
+      if (!year) return;
+      const data = stackedRaceKeys.map((race) => ({
+        year: String(year),
+        race,
+        value: getRaceValue(row, race),
+      }));
+      let offset = 0;
+      data.forEach((entry) => {
+        const value = Number.isFinite(entry.value) ? entry.value : 0;
+        const start = offset;
+        const end = offset + value;
+        result.push({
+          year: entry.year,
+          race: entry.race,
+          value,
+          values: [start, end],
+          data,
+        });
+        offset = end;
+      });
+    });
+    return result;
+  };
+
+  $: stackedData = buildStackedData(metricRowsSorted);
 
   $: baselineEntries = Array.isArray(baselines)
     ? baselines.filter((entry) => entry?.row_key === metricKey)
@@ -206,6 +269,15 @@
       document.body.style.overflow = "";
     }
   });
+
+  onMount(async () => {
+    try {
+      const module = await import("$lib/components/MetricChartStacked.svelte");
+      ChartComponent = module.default;
+    } catch (error) {
+      chartLoadError = error;
+    }
+  });
 </script>
 
 {#if open}
@@ -215,9 +287,14 @@
     style="top: var(--site-header-height); height: calc(100svh - var(--site-header-height));"
     on:click={handleBackdrop}
     on:keydown={handleKeydown}
+    role="presentation"
     tabindex="0"
   >
-    <div class="w-full max-w-full rounded-none bg-white p-4 shadow-2xl sm:max-w-4xl sm:rounded-2xl sm:p-6 max-h-[calc(100svh-var(--site-header-height))] overflow-y-auto overflow-x-hidden sm:max-h-[90vh]">
+    <div
+      class="w-full max-w-full rounded-none bg-white p-4 shadow-2xl sm:max-w-4xl sm:rounded-2xl sm:p-6 max-h-[calc(100svh-var(--site-header-height))] overflow-y-auto overflow-x-hidden sm:max-h-[90vh]"
+      role="dialog"
+      aria-modal="true"
+    >
       <div class="flex items-start justify-between gap-4">
         <div>
           <p class="text-xs uppercase tracking-[0.2em] text-slate-500">
@@ -226,6 +303,21 @@
           <h2 class="mt-2 text-xl font-semibold text-slate-900">
             {metricLabel || metricKey}
           </h2>
+          {#if tableLabel || sectionLabel}
+            <p class="mt-2 text-xs text-slate-500">
+              {#if tableLabel}
+                <span class="font-semibold text-slate-700">{agency_table_label()}:</span>
+                {tableLabel}
+              {/if}
+              {#if tableLabel && sectionLabel}
+                <span class="mx-2 text-slate-300">•</span>
+              {/if}
+              {#if sectionLabel}
+                <span class="font-semibold text-slate-700">{agency_section_label()}:</span>
+                {sectionLabel}
+              {/if}
+            </p>
+          {/if}
         </div>
         <button
           class="rounded-lg border border-slate-200 px-3 py-1 text-sm font-semibold text-slate-600 hover:bg-slate-50"
@@ -238,42 +330,29 @@
 
       <div class="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
         {#if chartType === "bar"}
-          {#if barData.length === 0}
+          {#if stackedData.length === 0}
             <p class="text-sm text-slate-500">{modal_no_data()}</p>
+          {:else if chartLoadError}
+            <p class="text-sm text-slate-500">{modal_chart_unavailable()}</p>
           {:else}
             <div class="h-[280px]">
-              <Chart
-                data={barData}
-                x="year"
-                xScale={scaleBand().paddingInner(0.55).paddingOuter(0.2)}
-                y="value"
-                yDomain={[0, null]}
-                yNice={4}
-                padding={{ left: 64, right: 12, bottom: 24, top: 8 }}
-              >
-                <Svg>
-                  <Bars strokeWidth={1} fill="#cbd5e1" />
-                  <Axis
-                    placement="left"
-                    grid={{ class: "stroke-slate-200/70" }}
-                    rule={{ class: "stroke-slate-400" }}
-                    tickLength={3}
-                    ticks={4}
-                    tickLabelProps={{
-                      style: "color: #0f172a; font-size: 11px; font-weight: 600;",
-                    }}
-                  />
-                  <Axis
-                    placement="bottom"
-                    rule={{ class: "stroke-slate-400" }}
-                    tickLength={3}
-                    tickLabelProps={{
-                      style: "color: #64748b; font-size: 10px; font-weight: 500;",
-                    }}
-                  />
-                  <Highlight area />
-                </Svg>
-              </Chart>
+              {#if ChartComponent}
+                <svelte:component
+                  this={ChartComponent}
+                  stackedData={stackedData}
+                  stackedRaceKeys={stackedRaceKeys}
+                  raceLabel={raceLabel}
+                  raceColor={raceColor}
+                  formatChartValue={formatChartValue}
+                />
+              {:else}
+                <div
+                  class="flex h-full items-center justify-center text-sm text-slate-500"
+                  aria-busy="true"
+                >
+                  Loading chart…
+                </div>
+              {/if}
             </div>
           {/if}
         {:else}

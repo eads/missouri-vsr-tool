@@ -90,6 +90,7 @@
   let isSearchActive = false;
   let preSearchExpandedGroups = new Set();
   let geocodeBlocks = [];
+  let gridTableEl;
   let agencyCount = 0;
 
   $: agencyData = data.data;
@@ -203,6 +204,7 @@
       key: "group_id",
       title: sectionLabel(),
       width: 180,
+      sortable: false,
       accessor: (row) => ({
         value: row.group_label,
         id: row.group_id,
@@ -214,6 +216,7 @@
       key: "metric",
       title: agency_metric_header(),
       width: 100,
+      sortable: false,
       accessor: (row) => ({
         value: row.metric,
         metricKey: row.metricKey,
@@ -225,6 +228,7 @@
       key: label,
       title: raceLabel(label),
       width: 96,
+      sortable: false,
       accessor: (row) => ({
         ...row[label],
         metricKey: row.metricKey,
@@ -865,8 +869,27 @@
     const handleHashChange = () => syncFromHash();
     window.addEventListener("hashchange", handleHashChange);
     expandDefaultGroups();
+    const handleGroupRowClick = (event) => {
+      if (!gridTableEl) return;
+      if (!(event.target instanceof HTMLElement)) return;
+      const row = event.target.closest(".gc-tr__groupby");
+      if (!row) return;
+      if (event.target.closest("button, a, input, select, textarea, [role='button']")) {
+        return;
+      }
+      const toggle = row.querySelector("button");
+      if (toggle) {
+        toggle.click();
+      }
+    };
+    if (gridTableEl) {
+      gridTableEl.addEventListener("click", handleGroupRowClick);
+    }
     return () => {
       window.removeEventListener("hashchange", handleHashChange);
+      if (gridTableEl) {
+        gridTableEl.removeEventListener("click", handleGroupRowClick);
+      }
     };
   });
 
@@ -1082,6 +1105,7 @@
             </div>
             <div
               class="gridcraft-table"
+              bind:this={gridTableEl}
               style="
                 --gc-main-color: #ffffff;
                 --gc-secondary-color: #f8fafc;
@@ -1093,7 +1117,7 @@
                 --gc-td-padding: 0.3rem 0.45rem;
                 --gc-table-radius: 0px;
                 --gc-tr-groupby-bg-color: #cbd5e1;
-                --gc-tr-groupby-border: 1px solid #94a3b8;
+                --gc-tr-groupby-border: 0px solid transparent;
                 --gc-td-groupby-content-font-size: 0.72rem;
                 --gc-td-groupby-content-font-weight: 700;
                 --gc-td-groupby-content-color: #0f172a;
@@ -1177,6 +1201,7 @@
     overflow: auto;
     max-height: min(70vh, 900px);
     position: relative;
+    padding: 0;
   }
 
   :global(.gridcraft-table thead) {
@@ -1192,6 +1217,7 @@
     background: #334155;
     border-color: #334155 !important;
     color: #ffffff !important;
+    cursor: default;
   }
 
   :global(.gridcraft-table .gc-header-tr .gc-th-col-title) {
@@ -1204,8 +1230,16 @@
   }
 
   :global(.gridcraft-table .gc-table) {
+    border-collapse: collapse;
+    border-spacing: 0;
+    margin: 0;
     table-layout: fixed;
     width: 100%;
+  }
+
+  :global(.gridcraft-table .gc-table th),
+  :global(.gridcraft-table .gc-table td) {
+    border: 0 !important;
   }
 
   :global(.gridcraft-table .gc-table td) {
@@ -1213,7 +1247,6 @@
   }
 
   :global(.gridcraft-table .gc-table th:first-child) {
-    border-right: 1px solid #e2e8f0;
     left: 0;
     z-index: 4;
   }
@@ -1223,7 +1256,6 @@
     left: 0;
     z-index: 2;
     background: #f1f5f9;
-    border-right: 1px solid #e2e8f0;
     box-shadow: 6px 0 8px -6px rgba(15, 23, 42, 0.15);
   }
 
@@ -1256,6 +1288,19 @@
     width: auto;
     justify-content: flex-start;
     gap: 0.5rem;
+  }
+
+  :global(.gridcraft-table .gc-tr__groupby) {
+    cursor: pointer;
+    border: 0 !important;
+  }
+
+  :global(.gridcraft-table .gc-tr__groupby:hover td) {
+    background: #b6c2d1;
+  }
+
+  :global(.gridcraft-table .gc-tr__groupby:hover .gc-td__groupby-container) {
+    background: #b6c2d1;
   }
 
   :global(.gridcraft-table .gc-td__groupby-count) {
