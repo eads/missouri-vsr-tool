@@ -328,9 +328,11 @@
               {agencyName}
             </p>
           {/if}
-          <p class={`text-xs uppercase tracking-[0.2em] text-slate-500 ${agencyName ? "mt-2" : ""}`}>
-            {modal_metric_label()}
-          </p>
+          {#if !agencyName}
+            <p class="text-xs uppercase tracking-[0.2em] text-slate-500">
+              {modal_metric_label()}
+            </p>
+          {/if}
           <h2 class="mt-2 text-xl font-semibold text-slate-900">
             {metricLabel || metricKey}
           </h2>
