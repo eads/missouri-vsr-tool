@@ -58,6 +58,8 @@
   "agency_stop_volume_rank_clause": "ranked #{rank} out of {total} departments",
   "agency_stop_volume_rank_clause_simple": "ranked #{rank}",
   "agency_stop_volume_rank_clause_highest": "the highest volume agency in the state",
+  "agency_download_data_for": "Download data for {agency}",
+  "agency_download_all_data": "Download all data",
   "table_disparity-index-by-race": "Disparity Index by Race",
   "table_number-of-stops-by-race": "Number of Stops by Race",
   "table_rates-by-race": "Rates by Race",

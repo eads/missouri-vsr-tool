@@ -901,7 +901,7 @@
     </h1>
   </header>
 
-  <section class="mb-10 grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)] md:items-start">
+  <section class="mb-10 grid gap-4 md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] md:items-start">
     <div class="rounded-2xl border border-slate-200 bg-white p-3">
       {#if stopVolumeLead}
         <p class="mb-4 text-xl font-normal text-slate-800 leading-snug">
@@ -983,6 +983,26 @@
           </dd>
         </div>
       </dl>
+      <div class="mt-4">
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500">
+          <a
+            class="inline-flex items-center gap-1 underline"
+            href={`/data/agency_year/${data.slug}.json`}
+            download
+          >
+            <span aria-hidden="true">↓</span>
+            {m?.agency_download_data_for?.({ agency: agencyData?.agency ?? data.slug }) ??
+              `Download data for ${agencyData?.agency ?? data.slug}`}
+          </a>
+          <a
+            class="inline-flex items-center gap-1 underline"
+            href="/data/agency_year.zip"
+          >
+            <span aria-hidden="true">↓</span>
+            {m?.agency_download_all_data?.() ?? "Download all data"}
+          </a>
+        </div>
+      </div>
     </div>
     <AgencyMap
       heading={agency_location_heading()}
@@ -990,7 +1010,7 @@
       addressResponse={geocodeAddressResponse}
       showHeading={false}
       className="mb-0"
-      heightClass="h-[280px]"
+      heightClass="h-[280px] md:h-[380px]"
     />
   </section>
 

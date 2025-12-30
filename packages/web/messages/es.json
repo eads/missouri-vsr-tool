@@ -58,6 +58,8 @@
   "agency_stop_volume_rank_clause": "clasificada #{rank} de {total} departamentos",
   "agency_stop_volume_rank_clause_simple": "clasificada #{rank}",
   "agency_stop_volume_rank_clause_highest": "la agencia de mayor volumen del estado",
+  "agency_download_data_for": "Descargar datos de {agency}",
+  "agency_download_all_data": "Descargar todos los datos",
   "table_disparity-index-by-race": "Disparidad \u00cdndice por raza",
   "table_number-of-stops-by-race": "N\u00famero de Paradas por raza",
   "table_rates-by-race": "Tasas por raza",
