@@ -583,13 +583,13 @@
         if (segmentSentence && segmentLabel) {
           const segmentIndex = segmentSentence.indexOf(segmentLabel);
           if (segmentIndex >= 0) {
-            stopVolumeSegmentPrefix = segmentSentence.slice(0, segmentIndex);
+            stopVolumeSegmentPrefix = segmentSentence.slice(0, segmentIndex).trim();
             stopVolumeSegmentLabel = segmentLabel;
-            stopVolumeSegmentSuffix = segmentSentence.slice(
-              segmentIndex + segmentLabel.length
-            );
+            stopVolumeSegmentSuffix = segmentSentence
+              .slice(segmentIndex + segmentLabel.length)
+              .trim();
           } else {
-            stopVolumeSegmentPrefix = segmentSentence;
+            stopVolumeSegmentPrefix = segmentSentence.trim();
             stopVolumeSegmentLabel = "";
             stopVolumeSegmentSuffix = "";
           }
@@ -933,12 +933,17 @@
           {stopVolumeLead}
           {#if stopVolumeSegmentLabel}
             {" "}
-            {stopVolumeSegmentPrefix}<strong class="font-semibold text-slate-900"
-              >{stopVolumeSegmentLabel}</strong
-            >{stopVolumeSegmentSuffix}
+            {stopVolumeSegmentPrefix}
+            {" "}
+            <strong class="font-semibold text-slate-900">{stopVolumeSegmentLabel}</strong>
+            {#if stopVolumeSegmentSuffix}
+              {" "}
+              {stopVolumeSegmentSuffix}
+            {/if}
           {/if}
           {#if stopVolumeRankClause}
-            , ({stopVolumeRankClause})
+            {" "}
+            ({stopVolumeRankClause})
           {/if}
           .
         </p>
