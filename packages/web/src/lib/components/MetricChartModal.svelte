@@ -35,6 +35,7 @@
   const dispatch = createEventDispatcher();
   let backdropEl;
   let ChartComponent;
+  let LineComponent;
   let chartLoadError = null;
 
   const chartTypeForMetric = (key, sample) => {
@@ -74,6 +75,8 @@
   $: chartType = chartTypeForMetric(metricKey, sampleValue);
   $: tableId = metricRows[0]?.table_id ?? "";
   $: sectionId = metricRows[0]?.section_id ?? "";
+  $: metricId = metricRows[0]?.metric_id ?? "";
+  $: isRateMetric = sectionId === "rates" || metricId.includes("rate");
 
   const numberFormatter = new Intl.NumberFormat(undefined, {
     maximumFractionDigits: 1,
@@ -170,7 +173,7 @@
       const data = stackedRaceKeys.map((race) => ({
         year: String(year),
         race,
-        value: getRaceValue(row, race),
+        value: toNumber(getRaceValue(row, race)),
       }));
       let offset = 0;
       data.forEach((entry) => {
@@ -191,6 +194,25 @@
   };
 
   $: stackedData = buildStackedData(metricRowsSorted);
+  $: lineSeries = stackedRaceKeys.map((race) => ({
+    race,
+    data: metricRowsSorted
+      .filter((row) => row?.year !== null && row?.year !== undefined)
+      .map((row) => ({
+        year: String(row?.year),
+        race,
+        value: toNumber(getRaceValue(row, race)),
+      })),
+  }));
+  $: lineData = lineSeries.flatMap((series) => series.data);
+  $: lineValuesByYear = lineSeries.reduce((acc, series) => {
+    series.data.forEach((entry) => {
+      if (!entry.year) return;
+      if (!acc[entry.year]) acc[entry.year] = {};
+      acc[entry.year][series.race] = entry.value;
+    });
+    return acc;
+  }, {});
 
   $: baselineEntries = Array.isArray(baselines)
     ? baselines.filter((entry) => entry?.row_key === metricKey)
@@ -272,8 +294,12 @@
 
   onMount(async () => {
     try {
-      const module = await import("$lib/components/MetricChartStacked.svelte");
-      ChartComponent = module.default;
+      const [stackedModule, lineModule] = await Promise.all([
+        import("$lib/components/MetricChartStacked.svelte"),
+        import("$lib/components/MetricChartLines.svelte"),
+      ]);
+      ChartComponent = stackedModule.default;
+      LineComponent = lineModule.default;
     } catch (error) {
       chartLoadError = error;
     }
@@ -337,7 +363,27 @@
           {:else}
             <div class="space-y-3">
               <div class="h-[280px]">
-                {#if ChartComponent}
+                {#if isRateMetric}
+                  {#if LineComponent}
+                    <svelte:component
+                      this={LineComponent}
+                      lineSeries={lineSeries}
+                      lineData={lineData}
+                      lineValuesByYear={lineValuesByYear}
+                      raceKeys={stackedRaceKeys}
+                      raceLabel={raceLabel}
+                      raceColor={raceColor}
+                      formatChartValue={formatChartValue}
+                    />
+                  {:else}
+                    <div
+                      class="flex h-full items-center justify-center text-sm text-slate-500"
+                      aria-busy="true"
+                    >
+                      Loading chart…
+                    </div>
+                  {/if}
+                {:else if ChartComponent}
                   <svelte:component
                     this={ChartComponent}
                     stackedData={stackedData}
