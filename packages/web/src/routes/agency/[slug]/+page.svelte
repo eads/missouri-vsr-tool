@@ -203,7 +203,7 @@
     {
       key: "group_id",
       title: sectionLabel(),
-      width: 240,
+      width: 180,
       accessor: (row) => ({
         value: row.group_label,
         id: row.group_id,
@@ -214,7 +214,7 @@
     {
       key: "metric",
       title: agency_metric_header(),
-      width: 220,
+      width: 120,
       accessor: (row) => ({
         value: row.metric,
         metricKey: row.metricKey,
@@ -225,7 +225,7 @@
     ...columnKeys.map((label) => ({
       key: label,
       title: raceLabel(label),
-      width: 140,
+      width: 96,
       accessor: (row) => ({
         ...row[label],
         metricKey: row.metricKey,
@@ -1066,14 +1066,15 @@
                 --gc-th-font-size: 0.65rem;
                 --gc-th-padding: 0.4rem 0.6rem;
                 --gc-th-text-transform: uppercase;
-                --gc-td-padding: 0.45rem 0.6rem;
+                --gc-td-padding: 0.3rem 0.45rem;
                 --gc-table-radius: 0px;
                 --gc-tr-groupby-bg-color: #cbd5e1;
                 --gc-tr-groupby-border: 1px solid #94a3b8;
                 --gc-td-groupby-content-font-size: 0.72rem;
                 --gc-td-groupby-content-font-weight: 700;
                 --gc-td-groupby-content-color: #0f172a;
-                --gc-td-groupby-padding: 0.35rem 0.6rem;
+                --gc-td-groupby-padding: 0px;
+                --gc-groupby-sticky-width: 180px;
               "
             >
               <Grid
@@ -1151,6 +1152,7 @@
   :global(.gridcraft-table .gc-table-wrapper) {
     overflow: auto;
     max-height: min(70vh, 900px);
+    position: relative;
   }
 
   :global(.gridcraft-table thead) {
@@ -1188,21 +1190,33 @@
 
   :global(.gridcraft-table .gc-tr__groupby td:first-child) {
     background: var(--gc-tr-groupby-bg-color, var(--gc-main-color));
+    border-right: none;
+    box-shadow: none;
   }
 
-  :global(.gridcraft-table .gc-td__groupby) {
+  :global(.gridcraft-table .gc-td.gc-td__groupby) {
+    position: relative;
+    padding: 0 !important;
     background: var(--gc-tr-groupby-bg-color, var(--gc-main-color));
   }
 
   :global(.gridcraft-table .gc-td__groupby-container) {
     position: sticky;
     left: 0;
-    z-index: 4;
+    z-index: 5;
     display: inline-flex;
     align-items: center;
+    box-sizing: border-box;
+    min-width: var(--gc-groupby-sticky-width, 180px);
+    max-width: var(--gc-groupby-sticky-width, 180px);
+    padding: 0.3rem 0.45rem;
     background: var(--gc-tr-groupby-bg-color, var(--gc-main-color));
-    padding-right: 0.5rem;
-    box-shadow: 6px 0 8px -6px rgba(15, 23, 42, 0.2);
+  }
+
+  :global(.gridcraft-table .gc-td__groupby-content) {
+    width: auto;
+    justify-content: flex-start;
+    gap: 0.5rem;
   }
 
   :global(.gridcraft-table .gc-td__groupby-count) {
