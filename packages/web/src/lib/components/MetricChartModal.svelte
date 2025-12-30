@@ -65,7 +65,7 @@
     ? raceKeys
     : ["White", "Black", "Hispanic", "Native American", "Asian", "Other"];
   $: isPercentageMetric = metricKey.endsWith("-percentage");
-  $: metricRows = (rows || []).filter((row) => row?.slug === metricKey);
+  $: metricRows = (rows || []).filter((row) => row?.row_key === metricKey);
   $: sampleValue = metricRows[0];
   $: chartType = chartTypeForMetric(metricKey, sampleValue);
 
@@ -130,7 +130,7 @@
   };
 
   $: baselineEntries = Array.isArray(baselines)
-    ? baselines.filter((entry) => entry?.slug === metricKey)
+    ? baselines.filter((entry) => entry?.row_key === metricKey)
     : [];
 
   $: baselineYears = Array.from(new Set(baselineEntries.map((entry) => entry.year))).sort(

@@ -472,29 +472,30 @@
       const yearValue = Number(latestYear);
       const totalEntry = rows.find(
         (row) =>
-          Number(row?.year) === yearValue && row?.slug === "rates--totals--all-stops"
+          Number(row?.year) === yearValue &&
+          row?.row_key === "rates-by-race--totals--all-stops"
       );
       const percentileEntry =
         rows.find(
           (row) =>
             Number(row?.year) === yearValue &&
-            row?.slug === "rates--totals--all-stops-percentile"
+            row?.row_key === "rates-by-race--totals--all-stops-percentile"
         ) ||
         rows.find(
           (row) =>
             Number(row?.year) === yearValue &&
-            row?.slug === "rates--totals--all-stops-percentile-no-mshp"
+            row?.row_key === "rates-by-race--totals--all-stops-percentile-no-mshp"
         );
       const rankEntry =
         rows.find(
           (row) =>
             Number(row?.year) === yearValue &&
-            row?.slug === "rates--totals--all-stops-rank"
+            row?.row_key === "rates-by-race--totals--all-stops-rank"
         ) ||
         rows.find(
           (row) =>
             Number(row?.year) === yearValue &&
-            row?.slug === "rates--totals--all-stops-rank-no-mshp"
+            row?.row_key === "rates-by-race--totals--all-stops-rank-no-mshp"
         );
       const totalValue = getMetricValue(totalEntry, "Total");
       const totalNumeric = typeof totalValue === "string" ? Number(totalValue) : totalValue;
@@ -607,8 +608,8 @@
   const chartRaceKeys = columnKeys.filter((label) => label !== "Total");
   const priorityPrefix = "rates--totals-";
 
-  const metricKeyForSlug = (slug) =>
-    `metric_${slug}`
+  const metricKeyForRowKey = (rowKey) =>
+    `metric_${rowKey}`
       .replace(/[^a-z0-9]/gi, "_")
       .replace(/_+/g, "_")
       .replace(/^_|_$/g, "")
@@ -625,17 +626,17 @@
     return `${lower.charAt(0).toUpperCase()}${lower.slice(1)}`;
   };
 
-  const humanizeMetricSlug = (slug) => {
-    let leaf = slug;
-    if (slug.includes("--")) {
-      const parts = slug.split("--");
+  const humanizeMetricSlug = (rowKey) => {
+    let leaf = rowKey;
+    if (rowKey.includes("--")) {
+      const parts = rowKey.split("--");
       leaf = parts[parts.length - 1];
-    } else if (slug.startsWith("rates-")) {
-      leaf = slug.slice("rates-".length);
-    } else if (slug.startsWith("search-")) {
-      leaf = slug.slice("search-".length);
-    } else if (slug.startsWith("stops-")) {
-      leaf = slug.slice("stops-".length);
+    } else if (rowKey.startsWith("rates-")) {
+      leaf = rowKey.slice("rates-".length);
+    } else if (rowKey.startsWith("search-")) {
+      leaf = rowKey.slice("search-".length);
+    } else if (rowKey.startsWith("stops-")) {
+      leaf = rowKey.slice("stops-".length);
     }
 
     const rawTokens = leaf.split("-").filter(Boolean);
@@ -655,10 +656,10 @@
     return tokens.join(" ");
   };
 
-  const metricLabelForKey = (slug) => {
-    const key = metricKeyForSlug(slug);
+  const metricLabelForKey = (rowKey) => {
+    const key = metricKeyForRowKey(rowKey);
     const labelFn = m?.[key];
-    return labelFn ? labelFn() : humanizeMetricSlug(slug);
+    return labelFn ? labelFn() : humanizeMetricSlug(rowKey);
   };
 
   const sectionLabel = () =>
@@ -699,7 +700,7 @@
     const groups = {};
 
     (entries || []).forEach((entry) => {
-      const key = entry?.slug;
+      const key = entry?.row_key;
       if (!key) return;
       let baseKey = key;
       let type = "base";
@@ -809,7 +810,7 @@
   let activeMetricKey = "";
   let activeMetricLabel = "";
 
-  const hasMetricKey = (metricKey) => rows.some((row) => row?.slug === metricKey);
+  const hasMetricKey = (metricKey) => rows.some((row) => row?.row_key === metricKey);
 
   const setHash = (metricKey) => {
     if (typeof window === "undefined") return;
