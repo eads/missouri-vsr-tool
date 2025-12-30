@@ -15,20 +15,27 @@
   let results = [];
   let selectedIndex = -1;
   let previousQuery = "";
+  let countyBySlug = {};
+  const countyFetches = new Set();
 
   const toLabel = (item) =>
     item?.canonical_name ||
     item?.names?.[0] ||
     item?.agency_slug ||
     search_unknown_agency();
-  const toStops = (item) => item?.["rates--totals--all-stops"];
+  const toStops = (item) => item?.["rates-by-race--totals--all-stops"];
   const formatStops = (value) => {
     const numeric = typeof value === "string" ? Number(value) : value;
     if (!Number.isFinite(numeric)) return null;
     return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(numeric);
   };
   const toSubLabel = (item) =>
-    [item?.geocode_address_county, item?.county, item?.county_name]
+    [
+      item?.geocode_address_county,
+      item?.county,
+      item?.county_name,
+      countyBySlug[toSlug(item)],
+    ]
       .filter(Boolean)
       .join(" • ");
   const toSlug = (item) => item?.agency_slug || item?.slug || item?.id;
@@ -132,6 +139,35 @@
     results = reranked;
   } else {
     results = [];
+  }
+
+  $: if (typeof window !== "undefined" && results.length) {
+    results.forEach((result) => {
+      const slug = toSlug(result.item);
+      if (!slug) return;
+      if (countyBySlug[slug]) return;
+      if (
+        result.item?.geocode_address_county ||
+        result.item?.county ||
+        result.item?.county_name
+      ) {
+        return;
+      }
+      if (countyFetches.has(slug)) return;
+      countyFetches.add(slug);
+      fetch(`/data/agency_year/${slug}.json`)
+        .then((response) => (response.ok ? response.json() : null))
+        .then((data) => {
+          const county = data?.agency_metadata?.geocode_address_county;
+          if (county) {
+            countyBySlug = { ...countyBySlug, [slug]: county };
+          }
+        })
+        .catch(() => {})
+        .finally(() => {
+          countyFetches.delete(slug);
+        });
+    });
   }
 
   $: searchState.set({ query, results, selectedIndex });
