@@ -140,12 +140,12 @@
   };
 
   const raceColors = {
-    White: "#cbd5f5",
-    Black: "#1e293b",
-    Hispanic: "#f59e0b",
-    "Native American": "#10b981",
-    Asian: "#38bdf8",
-    Other: "#a855f7",
+    White: "#e2e8f0",
+    Black: "#94a3b8",
+    Hispanic: "#fcd34d",
+    "Native American": "#a7f3d0",
+    Asian: "#bae6fd",
+    Other: "#f9a8d4",
   };
 
   const raceColor = (race) => raceColors[race] || "#94a3b8";
@@ -335,24 +335,37 @@
           {:else if chartLoadError}
             <p class="text-sm text-slate-500">{modal_chart_unavailable()}</p>
           {:else}
-            <div class="h-[280px]">
-              {#if ChartComponent}
-                <svelte:component
-                  this={ChartComponent}
-                  stackedData={stackedData}
-                  stackedRaceKeys={stackedRaceKeys}
-                  raceLabel={raceLabel}
-                  raceColor={raceColor}
-                  formatChartValue={formatChartValue}
-                />
-              {:else}
-                <div
-                  class="flex h-full items-center justify-center text-sm text-slate-500"
-                  aria-busy="true"
-                >
-                  Loading chart…
-                </div>
-              {/if}
+            <div class="space-y-3">
+              <div class="h-[280px]">
+                {#if ChartComponent}
+                  <svelte:component
+                    this={ChartComponent}
+                    stackedData={stackedData}
+                    stackedRaceKeys={stackedRaceKeys}
+                    raceLabel={raceLabel}
+                    raceColor={raceColor}
+                    formatChartValue={formatChartValue}
+                  />
+                {:else}
+                  <div
+                    class="flex h-full items-center justify-center text-sm text-slate-500"
+                    aria-busy="true"
+                  >
+                    Loading chart…
+                  </div>
+                {/if}
+              </div>
+              <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-600">
+                {#each stackedRaceKeys as race}
+                  <span class="flex items-center gap-2">
+                    <span
+                      class="h-2.5 w-2.5 rounded-full"
+                      style={`background:${raceColor(race)}`}
+                    ></span>
+                    {raceLabel(race)}
+                  </span>
+                {/each}
+              </div>
             </div>
           {/if}
         {:else}
