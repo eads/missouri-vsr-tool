@@ -55,7 +55,7 @@
   "agency_stop_volume_segment_top": "20% superior",
   "agency_stop_volume_segment_middle": "60% medio",
   "agency_stop_volume_segment_bottom": "20% inferior",
-  "agency_stop_volume_ranked": "Clasificada #{rank} de {total} departamentos.",
-  "agency_stop_volume_ranked_simple": "Clasificada #{rank}.",
-  "agency_stop_volume_rank_highest": "Es la agencia de mayor volumen del estado."
+  "agency_stop_volume_rank_clause": "clasificada #{rank} de {total} departamentos",
+  "agency_stop_volume_rank_clause_simple": "clasificada #{rank}",
+  "agency_stop_volume_rank_clause_highest": "la agencia de mayor volumen del estado"
 }

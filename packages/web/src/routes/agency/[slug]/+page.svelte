@@ -381,12 +381,10 @@
   let showJurisdiction = false;
   let addressState = "";
   let stopVolumeLead = "";
-  let stopVolumeLeadPunctuation = ".";
   let stopVolumeSegmentLabel = "";
   let stopVolumeSegmentPrefix = "";
   let stopVolumeSegmentSuffix = "";
-  let stopVolumeSegmentPunctuation = ".";
-  let stopVolumeRankSentence = "";
+  let stopVolumeRankClause = "";
   const formatPhone = (value) => {
     const digits = value.replace(/\D+/g, "");
     if (digits.length === 10) {
@@ -464,12 +462,10 @@
   $: {
     const latestYear = years.find((year) => Number.isFinite(Number(year)));
     stopVolumeLead = "";
-    stopVolumeLeadPunctuation = ".";
     stopVolumeSegmentLabel = "";
     stopVolumeSegmentPrefix = "";
     stopVolumeSegmentSuffix = "";
-    stopVolumeSegmentPunctuation = ".";
-    stopVolumeRankSentence = "";
+    stopVolumeRankClause = "";
     if (!latestYear) {
       stopVolumeLead = "";
     } else {
@@ -508,12 +504,12 @@
         const agencyName = agencyData?.agency ?? data.slug;
         const totalStops = stopCountFormatter.format(totalNumeric);
         const leadFn = m?.agency_stop_volume_lead;
-        const lead =
+        const leadRaw =
           typeof leadFn === "function"
             ? leadFn({ agency: agencyName, stops: totalStops, year: latestYear })
             : `${agencyName} had ${totalStops} stops in ${latestYear}`;
+        const lead = leadRaw.replace(/[.!?]+$/, "").trim();
         stopVolumeLead = lead;
-        stopVolumeLeadPunctuation = /[.!?]$/.test(lead.trim()) ? "" : ".";
 
         const percentileValue = getMetricValue(percentileEntry, "Total");
         const percentileNumeric =
@@ -544,17 +540,18 @@
               ? segmentFn({ segment: segmentLabel })
               : `putting it in the ${segmentLabel} of departments by stop volume`;
         }
+        segmentSentence = segmentSentence.replace(/[.!?]+$/, "").trim();
         const rankValue = getMetricValue(rankEntry, "Total");
         const rankNumeric = typeof rankValue === "string" ? Number(rankValue) : rankValue;
-        let rankSentence = "";
+        let rankClause = "";
         if (Number.isFinite(rankNumeric)) {
           const rankRounded = Math.round(rankNumeric);
           if (rankRounded === 1) {
-            const rankHighestFn = m?.agency_stop_volume_rank_highest;
-            rankSentence =
+            const rankHighestFn = m?.agency_stop_volume_rank_clause_highest;
+            rankClause =
               typeof rankHighestFn === "function"
                 ? rankHighestFn()
-                : "It is the highest volume agency in the state.";
+                : "the highest volume agency in the state";
           } else {
             const rankDisplay = stopCountFormatter.format(rankRounded);
             const agencyCount = Number(data?.agencyCount);
@@ -562,21 +559,22 @@
               Number.isFinite(agencyCount) && agencyCount > 0
                 ? stopCountFormatter.format(agencyCount)
                 : "";
-            const rankFn = m?.agency_stop_volume_ranked;
-            const rankSimpleFn = m?.agency_stop_volume_ranked_simple;
+            const rankFn = m?.agency_stop_volume_rank_clause;
+            const rankSimpleFn = m?.agency_stop_volume_rank_clause_simple;
             if (totalDisplay) {
-              rankSentence =
+              rankClause =
                 typeof rankFn === "function"
                   ? rankFn({ rank: rankDisplay, total: totalDisplay })
-                  : `Ranked #${rankDisplay} out of ${totalDisplay} departments.`;
+                  : `ranked #${rankDisplay} out of ${totalDisplay} departments`;
             } else {
-              rankSentence =
+              rankClause =
                 typeof rankSimpleFn === "function"
                   ? rankSimpleFn({ rank: rankDisplay })
-                  : `Ranked #${rankDisplay}.`;
+                  : `ranked #${rankDisplay}`;
             }
           }
         }
+        rankClause = rankClause.replace(/[.!?]+$/, "").trim();
 
         if (segmentSentence && segmentLabel) {
           const segmentIndex = segmentSentence.indexOf(segmentLabel);
@@ -586,17 +584,13 @@
             stopVolumeSegmentSuffix = segmentSentence.slice(
               segmentIndex + segmentLabel.length
             );
-            stopVolumeSegmentPunctuation = stopVolumeSegmentSuffix.trim().endsWith(".")
-              ? ""
-              : ".";
           } else {
             stopVolumeSegmentPrefix = segmentSentence;
             stopVolumeSegmentLabel = "";
             stopVolumeSegmentSuffix = "";
-            stopVolumeSegmentPunctuation = segmentSentence.trim().endsWith(".") ? "" : ".";
           }
         }
-        stopVolumeRankSentence = rankSentence;
+        stopVolumeRankClause = rankClause;
       }
     }
   }
@@ -918,13 +912,12 @@
             {" "}
             {stopVolumeSegmentPrefix}<strong class="font-semibold text-slate-900"
               >{stopVolumeSegmentLabel}</strong
-            >{stopVolumeSegmentSuffix}{stopVolumeSegmentPunctuation}
-          {:else}
-            {stopVolumeLeadPunctuation}
+            >{stopVolumeSegmentSuffix}
           {/if}
-          {#if stopVolumeRankSentence}
-            {" "}{stopVolumeRankSentence}
+          {#if stopVolumeRankClause}
+            , ({stopVolumeRankClause})
           {/if}
+          .
         </p>
       {/if}
       <dl class="divide-y divide-slate-100">
