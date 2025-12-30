@@ -1,5 +1,6 @@
 <script lang="ts">
   export let value: string | number | null | undefined = "";
+  export let id: string | number | null | undefined = "";
   export let metricKey: string = "";
   export let onOpen: ((key: string) => void) | undefined;
   export let variant: "section" | "table" | "default" = "default";
@@ -17,7 +18,7 @@
 </script>
 
 {#if isGroupByHeader}
-  <span class="text-xs font-semibold text-slate-600">{displayValue}</span>
+  <span class="text-xs font-semibold text-slate-600" data-group-id={id}>{displayValue}</span>
 {:else}
   <button
     type="button"

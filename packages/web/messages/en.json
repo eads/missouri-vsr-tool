@@ -26,6 +26,8 @@
   "agency_view_full_json": "View full JSON",
   "agency_metric_search_placeholder": "Search metrics",
   "agency_metric_search_label": "Search metrics",
+  "agency_group_expand_all": "Expand all",
+  "agency_group_collapse_all": "Collapse all",
   "modal_metric_label": "Metric",
   "modal_close": "Close",
   "modal_no_data": "No data available for this metric.",

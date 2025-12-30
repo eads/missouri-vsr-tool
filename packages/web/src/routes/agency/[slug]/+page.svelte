@@ -87,6 +87,8 @@
   let metricSearch = "";
   let groupOrderMap = new Map();
   let autoExpandVersion = 0;
+  let isSearchActive = false;
+  let preSearchExpandedGroups = new Set();
   let geocodeBlocks = [];
   let agencyCount = 0;
 
@@ -201,6 +203,7 @@
     {
       key: "group_id",
       title: sectionLabel(),
+      width: 240,
       accessor: (row) => ({
         value: row.group_label,
         id: row.group_id,
@@ -211,6 +214,7 @@
     {
       key: "metric",
       title: agency_metric_header(),
+      width: 220,
       accessor: (row) => ({
         value: row.metric,
         metricKey: row.metricKey,
@@ -221,6 +225,7 @@
     ...columnKeys.map((label) => ({
       key: label,
       title: raceLabel(label),
+      width: 140,
       accessor: (row) => ({
         ...row[label],
         metricKey: row.metricKey,
@@ -257,6 +262,62 @@
       }
     });
   };
+
+  const setAllGroupsExpanded = async (expand) => {
+    if (typeof document === "undefined") return;
+    await tick();
+    const groupRows = Array.from(document.querySelectorAll(".gridcraft-table .gc-tr__groupby"));
+    groupRows.forEach((row) => {
+      const toggle = row.querySelector("button");
+      if (!toggle) return;
+      const isCollapsed = row.querySelector(".feather-chevron-right");
+      const isExpanded = row.querySelector(".feather-chevron-down");
+      if (expand && isCollapsed) {
+        toggle.click();
+      } else if (!expand && isExpanded) {
+        toggle.click();
+      }
+    });
+  };
+
+  const getGroupRows = () =>
+    Array.from(document.querySelectorAll(".gridcraft-table [data-group-id]")).map((label) => {
+      const groupId = label.getAttribute("data-group-id") || "";
+      const row = label.closest("tr");
+      return { groupId, row };
+    });
+
+  const getExpandedGroupIds = () => {
+    if (typeof document === "undefined") return new Set();
+    const expanded = new Set();
+    getGroupRows().forEach(({ groupId, row }) => {
+      if (!groupId || !row) return;
+      if (row.querySelector(".feather-chevron-down")) {
+        expanded.add(groupId);
+      }
+    });
+    return expanded;
+  };
+
+  const restoreGroupExpansion = async (desiredExpanded) => {
+    if (typeof document === "undefined") return;
+    await tick();
+    getGroupRows().forEach(({ groupId, row }) => {
+      if (!groupId || !row) return;
+      const toggle = row.querySelector("button");
+      if (!toggle) return;
+      const isCollapsed = row.querySelector(".feather-chevron-right");
+      const isExpanded = row.querySelector(".feather-chevron-down");
+      if (desiredExpanded.has(groupId) && isCollapsed) {
+        toggle.click();
+      } else if (!desiredExpanded.has(groupId) && isExpanded) {
+        toggle.click();
+      }
+    });
+  };
+
+  const expandAllGroups = () => setAllGroupsExpanded(true);
+  const collapseAllGroups = () => setAllGroupsExpanded(false);
 
   $: {
     const trimmed = metricSearch.trim().toLowerCase();
@@ -827,6 +888,18 @@
       expandDefaultGroups();
     });
   }
+
+  $: {
+    const trimmed = metricSearch.trim();
+    if (trimmed && !isSearchActive) {
+      isSearchActive = true;
+      preSearchExpandedGroups = getExpandedGroupIds();
+      expandAllGroups();
+    } else if (!trimmed && isSearchActive) {
+      isSearchActive = false;
+      restoreGroupExpansion(preSearchExpandedGroups);
+    }
+  }
 </script>
 
 <main class="mx-auto w-full max-w-5xl px-4 pb-16 pt-12 sm:px-6">
@@ -959,7 +1032,21 @@
                   </button>
                 {/each}
               </div>
-              <div class="flex w-full sm:w-auto">
+              <div class="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
+                <button
+                  type="button"
+                  class="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900 sm:text-xs"
+                  on:click={expandAllGroups}
+                >
+                  {m?.agency_group_expand_all?.() ?? "Expand all"}
+                </button>
+                <button
+                  type="button"
+                  class="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900 sm:text-xs"
+                  on:click={collapseAllGroups}
+                >
+                  {m?.agency_group_collapse_all?.() ?? "Collapse all"}
+                </button>
                 <input
                   type="search"
                   class="h-8 w-full rounded-full border border-slate-200 bg-white px-3 text-xs text-slate-700 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none sm:w-52 sm:text-sm"
@@ -1079,7 +1166,13 @@
     background: var(--gc-secondary-color);
   }
 
+  :global(.gridcraft-table .gc-table) {
+    table-layout: fixed;
+    width: 100%;
+  }
+
   :global(.gridcraft-table .gc-table th:first-child) {
+    border-right: 1px solid #e2e8f0;
     left: 0;
     z-index: 4;
   }
@@ -1089,10 +1182,30 @@
     left: 0;
     z-index: 2;
     background: var(--gc-main-color);
+    border-right: 1px solid #e2e8f0;
     box-shadow: 6px 0 8px -6px rgba(15, 23, 42, 0.15);
   }
 
   :global(.gridcraft-table .gc-tr__groupby td:first-child) {
     background: var(--gc-tr-groupby-bg-color, var(--gc-main-color));
+  }
+
+  :global(.gridcraft-table .gc-td__groupby) {
+    background: var(--gc-tr-groupby-bg-color, var(--gc-main-color));
+  }
+
+  :global(.gridcraft-table .gc-td__groupby-container) {
+    position: sticky;
+    left: 0;
+    z-index: 4;
+    display: inline-flex;
+    align-items: center;
+    background: var(--gc-tr-groupby-bg-color, var(--gc-main-color));
+    padding-right: 0.5rem;
+    box-shadow: 6px 0 8px -6px rgba(15, 23, 42, 0.2);
+  }
+
+  :global(.gridcraft-table .gc-td__groupby-count) {
+    display: none;
   }
 </style>
