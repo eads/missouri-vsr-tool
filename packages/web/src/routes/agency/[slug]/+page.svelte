@@ -996,7 +996,7 @@
           </a>
           <a
             class="inline-flex items-center gap-1 underline"
-            href="/data/agency_year.zip"
+            href="/data/vsr_2020_2024_all.parquet"
           >
             <span aria-hidden="true">↓</span>
             {m?.agency_download_all_data?.() ?? "Download all data"}
