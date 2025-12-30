@@ -146,10 +146,8 @@
       }
     });
     metricGroups.forEach((metric) => {
-      const tableValue = metric.base?.table ?? "";
-      const sectionValue = metric.base?.section ?? "";
-      const tableId = metric.base?.table_id ?? tableValue ?? "";
-      const sectionId = metric.base?.section_id ?? sectionValue ?? "";
+      const tableId = metric.base?.table_id ?? "";
+      const sectionId = metric.base?.section_id ?? "";
       const key = `${tableId}__${sectionId}`;
       if (!groupOrderMap.has(key)) {
         groupOrderMap.set(key, nextIndex++);
@@ -159,11 +157,12 @@
   $: gridRows = metricGroups.map((metric) => {
     const isPercentageMetric = metric.key.endsWith("-percentage");
     const columns = normalizeMetric(metric.base, { isPercentage: isPercentageMetric });
-    const tableValue = metric.base?.table ?? "";
-    const sectionValue = metric.base?.section ?? "";
-    const tableId = metric.base?.table_id ?? tableValue ?? "";
-    const sectionId = metric.base?.section_id ?? sectionValue ?? "";
-    const groupLabelParts = [tableValue, sectionValue].filter(Boolean);
+    const tableId = metric.base?.table_id ?? "";
+    const sectionId = metric.base?.section_id ?? "";
+    const groupLabelParts = [
+      tableLabelForId(tableId),
+      sectionLabelForId(sectionId),
+    ].filter(Boolean);
     const groupLabel = groupLabelParts.length ? groupLabelParts.join(": ") : "—";
     const groupId = `${tableId}__${sectionId}`;
     const row = {
@@ -171,7 +170,7 @@
       metricKey: metric.key,
       group_label: groupLabel,
       group_id: groupId,
-      metric: metric.base?.metric ? formatValue(metric.base?.metric) : metricLabelForKey(metric.key),
+      metric: metricLabelForKey(metric.key, metric.base?.metric_id),
     };
 
     columnKeys.forEach((label) => {
@@ -608,8 +607,8 @@
   const chartRaceKeys = columnKeys.filter((label) => label !== "Total");
   const priorityPrefix = "rates--totals-";
 
-  const metricKeyForRowKey = (rowKey) =>
-    `metric_${rowKey}`
+  const translationKeyForId = (prefix, id) =>
+    `${prefix}_${id}`
       .replace(/[^a-z0-9]/gi, "_")
       .replace(/_+/g, "_")
       .replace(/^_|_$/g, "")
@@ -626,20 +625,9 @@
     return `${lower.charAt(0).toUpperCase()}${lower.slice(1)}`;
   };
 
-  const humanizeMetricSlug = (rowKey) => {
-    let leaf = rowKey;
-    if (rowKey.includes("--")) {
-      const parts = rowKey.split("--");
-      leaf = parts[parts.length - 1];
-    } else if (rowKey.startsWith("rates-")) {
-      leaf = rowKey.slice("rates-".length);
-    } else if (rowKey.startsWith("search-")) {
-      leaf = rowKey.slice("search-".length);
-    } else if (rowKey.startsWith("stops-")) {
-      leaf = rowKey.slice("stops-".length);
-    }
-
-    const rawTokens = leaf.split("-").filter(Boolean);
+  const humanizeId = (id) => {
+    if (!id) return "—";
+    const rawTokens = String(id).split("-").filter(Boolean);
     const tokens = [];
 
     for (let i = 0; i < rawTokens.length; i += 1) {
@@ -656,10 +644,20 @@
     return tokens.join(" ");
   };
 
-  const metricLabelForKey = (rowKey) => {
-    const key = metricKeyForRowKey(rowKey);
+  const labelForId = (prefix, id) => {
+    if (!id) return "";
+    const key = translationKeyForId(prefix, id);
     const labelFn = m?.[key];
-    return labelFn ? labelFn() : humanizeMetricSlug(rowKey);
+    return labelFn ? labelFn() : humanizeId(id);
+  };
+
+  const metricLabelForKey = (rowKey, metricId) => {
+    const id = metricId || rowKey?.split("--").pop() || rowKey;
+    return labelForId("metric", id) || humanizeId(id);
+  };
+
+  const tableLabelForId = (id) => labelForId("table", id);
+  const sectionLabelForId = (id) => labelForId("section", id);
   };
 
   const sectionLabel = () =>
