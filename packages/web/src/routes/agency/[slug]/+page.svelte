@@ -213,7 +213,7 @@
     {
       key: "metric",
       title: agency_metric_header(),
-      width: 120,
+      width: 100,
       accessor: (row) => ({
         value: row.metric,
         metricKey: row.metricKey,
@@ -865,7 +865,9 @@
     const handleHashChange = () => syncFromHash();
     window.addEventListener("hashchange", handleHashChange);
     expandDefaultGroups();
-    return () => window.removeEventListener("hashchange", handleHashChange);
+    return () => {
+      window.removeEventListener("hashchange", handleHashChange);
+    };
   });
 
   $: if (typeof window !== "undefined" && rows.length) {
@@ -1025,46 +1027,57 @@
           <p class="mt-4 text-sm text-slate-500">{agency_no_rows()}</p>
         {:else}
           <div class="mb-6 max-w-full overflow-visible rounded-xl border border-slate-200 bg-white md:mx-[calc(50%-50vw+2rem)] md:w-[calc(100vw-4rem)] md:max-w-none">
-            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-3 py-2 sm:px-4">
-              <div role="tablist" aria-label={agency_yearly_data_heading()} class="flex flex-wrap items-center gap-2">
-                {#each years as year}
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={year === selectedYear}
-                    class={`rounded-full border px-3 py-1 text-[11px] font-semibold transition sm:text-xs ${
-                      year === selectedYear
-                        ? "border-slate-900 bg-slate-900 text-white"
-                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900"
-                    }`}
-                    on:click={() => selectYear(year)}
-                  >
-                    {year}
-                  </button>
-                {/each}
-              </div>
-              <div class="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
-                <button
-                  type="button"
-                  class="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900 sm:text-xs"
-                  on:click={expandAllGroups}
-                >
-                  {m?.agency_group_expand_all?.() ?? "Expand all"}
-                </button>
-                <button
-                  type="button"
-                  class="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900 sm:text-xs"
-                  on:click={collapseAllGroups}
-                >
-                  {m?.agency_group_collapse_all?.() ?? "Collapse all"}
-                </button>
+            <div class="border-b border-slate-200 bg-slate-50">
+              <div class="flex flex-wrap items-center gap-3 px-3 py-2 sm:px-4">
+                <span class="text-[11px] uppercase tracking-[0.2em] text-slate-500">
+                  {agencyData?.agency ?? data.slug}
+                </span>
                 <input
                   type="search"
-                  class="h-8 w-full rounded-full border border-slate-200 bg-white px-3 text-xs text-slate-700 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none sm:w-52 sm:text-sm"
+                  class="h-8 w-full rounded-md border border-slate-200 bg-white px-3 text-xs text-slate-700 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none sm:w-56 sm:text-sm"
                   placeholder={m?.agency_metric_search_placeholder?.() ?? "Search metrics"}
                   aria-label={m?.agency_metric_search_label?.() ?? "Search metrics"}
                   bind:value={metricSearch}
                 />
+              </div>
+              <div class="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 px-3 py-2 sm:px-4">
+                <div role="tablist" aria-label={agency_yearly_data_heading()} class="flex flex-wrap items-center gap-1.5">
+                  {#each years as year}
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={year === selectedYear}
+                      class={`rounded-md border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] transition sm:text-xs ${
+                        year === selectedYear
+                          ? "border-slate-900 bg-slate-900 text-white"
+                          : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900"
+                      }`}
+                      on:click={() => selectYear(year)}
+                    >
+                      {year}
+                    </button>
+                  {/each}
+                </div>
+                <div class="flex items-center gap-2">
+                  <button
+                    type="button"
+                    class="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-semibold text-slate-600 uppercase tracking-[0.14em] transition hover:border-slate-300 hover:text-slate-900 sm:text-xs"
+                    on:click={expandAllGroups}
+                    aria-label={m?.agency_group_expand_all?.() ?? "Expand all"}
+                  >
+                    <span class="text-sm sm:hidden">＋</span>
+                    <span class="hidden sm:inline">{m?.agency_group_expand_all?.() ?? "Expand all"}</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-semibold text-slate-600 uppercase tracking-[0.14em] transition hover:border-slate-300 hover:text-slate-900 sm:text-xs"
+                    on:click={collapseAllGroups}
+                    aria-label={m?.agency_group_collapse_all?.() ?? "Collapse all"}
+                  >
+                    <span class="text-sm sm:hidden">－</span>
+                    <span class="hidden sm:inline">{m?.agency_group_collapse_all?.() ?? "Collapse all"}</span>
+                  </button>
+                </div>
               </div>
             </div>
             <div
@@ -1176,12 +1189,27 @@
     position: sticky;
     top: 0;
     z-index: 3;
-    background: var(--gc-secondary-color);
+    background: #334155;
+    border-color: #334155 !important;
+    color: #ffffff !important;
+  }
+
+  :global(.gridcraft-table .gc-header-tr .gc-th-col-title) {
+    color: #ffffff !important;
+  }
+
+  :global(.gridcraft-table .gc-header-tr th:first-child) {
+    background: #1f2937;
+    border-color: #1f2937 !important;
   }
 
   :global(.gridcraft-table .gc-table) {
     table-layout: fixed;
     width: 100%;
+  }
+
+  :global(.gridcraft-table .gc-table td) {
+    background: #ffffff;
   }
 
   :global(.gridcraft-table .gc-table th:first-child) {
@@ -1194,7 +1222,7 @@
     position: sticky;
     left: 0;
     z-index: 2;
-    background: var(--gc-main-color);
+    background: #f1f5f9;
     border-right: 1px solid #e2e8f0;
     box-shadow: 6px 0 8px -6px rgba(15, 23, 42, 0.15);
   }
