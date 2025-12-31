@@ -1041,6 +1041,10 @@
       showHeading={false}
       className="mb-0"
       heightClass="h-[280px] md:h-[380px]"
+      agencyId={agencyData?.agency_metadata?.agency_id ??
+        agencyData?.agency_metadata?.agency_slug ??
+        data.slug}
+      pmtilesUrl="/data/tiles/mo_jurisdictions_2024_500k.pmtiles"
     />
   </section>
 
