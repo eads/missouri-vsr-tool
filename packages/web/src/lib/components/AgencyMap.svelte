@@ -13,7 +13,7 @@
   export let pmtilesUrl = "";
   export let pmtilesSourceLayer = "counties";
   export let agencyBoundaryBasePath = "/data/agency_boundaries";
-  export let boundaryDataOverride = null;
+  export let boundaryDataOverride = undefined;
 
   let MapLibre;
   let Marker;
@@ -100,21 +100,30 @@
     mapReady = true;
   });
 
+  const handleMapLoad = (event) => {
+    const nextMap = event?.target ?? event?.detail?.map ?? event?.detail ?? null;
+    if (nextMap && mapInstance !== nextMap) {
+      mapInstance = nextMap;
+    }
+  };
+
   $: boundaryUrl = agencyId ? `${agencyBoundaryBasePath}/${agencyId}.geojson` : "";
 
-  $: if (boundaryDataOverride) {
+  const hasBoundaryOverride = boundaryDataOverride !== undefined;
+
+  $: if (hasBoundaryOverride) {
     boundaryData = boundaryDataOverride;
     boundaryBounds = null;
     lastBoundaryUrl = "";
   }
 
-  $: if (!boundaryDataOverride && !boundaryUrl) {
+  $: if (!hasBoundaryOverride && !boundaryUrl) {
     boundaryData = null;
     boundaryBounds = null;
     lastBoundaryUrl = "";
   }
 
-  $: if (!boundaryDataOverride && browser && boundaryUrl && boundaryUrl !== lastBoundaryUrl) {
+  $: if (!hasBoundaryOverride && browser && boundaryUrl && boundaryUrl !== lastBoundaryUrl) {
     lastBoundaryUrl = boundaryUrl;
     fetch(boundaryUrl)
       .then((response) => (response.ok ? response.json() : null))
@@ -209,11 +218,11 @@
     <div class={`${heightClass} w-full overflow-hidden rounded-2xl border border-slate-200 bg-slate-200`}>
       <svelte:component
         this={MapLibre}
-        bind:map={mapInstance}
         class="h-full w-full"
         style={mapStyle}
         center={center}
         zoom={14}
+        onload={handleMapLoad}
       >
         {#if pmtilesReady && pmtilesSourceUrl && VectorTileSource}
           <svelte:component this={VectorTileSource} id="mo-jurisdictions" url={pmtilesSourceUrl} />

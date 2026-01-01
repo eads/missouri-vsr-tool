@@ -1085,6 +1085,7 @@
       heading={agency_location_heading()}
       loadingLabel={agency_map_loading()}
       addressResponse={geocodeAddressResponse}
+      fallbackResponse={geocodeJurisdictionResponse}
       showHeading={false}
       className="mb-0"
       heightClass="h-[280px] md:h-[380px]"
