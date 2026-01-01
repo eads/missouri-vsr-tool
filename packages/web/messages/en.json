@@ -173,5 +173,7 @@
   "metric_warning": "Warning",
   "metric_weapon": "Weapon",
   "agency_county_label": "County",
-  "agency_neighboring_agencies_label": "Neighboring agencies"
+  "agency_neighbors_heading": "Neighboring agencies",
+  "agency_neighbors_touching_label": "Touching agencies",
+  "agency_neighbors_contained_label": "Contained agencies"
 }
