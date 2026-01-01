@@ -5,6 +5,7 @@ export async function load({ fetch, params }) {
   const response = await fetch(`/data/agency_year/${slug}.json`);
   const baselineResponse = await fetch("/data/statewide_slug_baselines.json");
   const indexResponse = await fetch("/data/agency_index.json");
+  const boundaryResponse = await fetch(`/data/agency_boundaries/${slug}.geojson`);
 
   if (!response.ok) {
     throw error(404, `Agency not found: ${slug}`);
@@ -13,11 +14,13 @@ export async function load({ fetch, params }) {
   const data = await response.json();
   const baselines = baselineResponse.ok ? await baselineResponse.json() : [];
   const agencies = indexResponse.ok ? await indexResponse.json() : [];
+  const boundary = boundaryResponse.ok ? await boundaryResponse.json() : null;
 
   return {
     slug,
     data,
     baselines,
     agencyCount: Array.isArray(agencies) ? agencies.length : 0,
+    boundary,
   };
 }

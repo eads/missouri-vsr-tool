@@ -381,7 +381,11 @@
   let rawPhone = "";
   let phoneHref = "";
   let jurisdictionDisplay = "";
+  let jurisdictionCountyDisplay = "";
   let showJurisdiction = false;
+  let showJurisdictionCounty = false;
+  let neighboringAgencies = [];
+  let boundaryData = null;
   let addressState = "";
   let stopVolumeLead = "";
   let stopVolumeSegmentLabel = "";
@@ -399,6 +403,7 @@
     return value;
   };
   $: agencyType = cleanMetadataValue(metadata?.AgencyType);
+  $: boundaryData = data?.boundary ?? null;
   $: {
     const typeKey = agencyType.toLowerCase();
     const cityValue =
@@ -407,7 +412,8 @@
       cleanMetadataValue(metadata?.geocode_address_response?.results?.[0]?.address_components?.city);
     const countyValue =
       cleanMetadataValue(metadata?.geocode_jurisdiction_county) ||
-      cleanMetadataValue(metadata?.geocode_address_county);
+      cleanMetadataValue(metadata?.geocode_address_county) ||
+      cleanMetadataValue(metadata?.County);
     const stateValue =
       cleanMetadataValue(metadata?.geocode_jurisdiction_response?.results?.[0]?.address_components?.state) ||
       cleanMetadataValue(metadata?.geocode_address_response?.results?.[0]?.address_components?.state) ||
@@ -418,6 +424,7 @@
     const isMunicipal = typeKey.includes("municipal");
     const isCounty = typeKey.includes("county");
     const isStateAgency = typeKey.includes("state");
+    const supportsCounty = !isStateAgency;
 
     if (isRail) {
       jurisdictionDisplay = "";
@@ -438,6 +445,8 @@
       jurisdictionDisplay = countyValue || cityValue || stateValue;
       showJurisdiction = Boolean(jurisdictionDisplay);
     }
+    jurisdictionCountyDisplay = countyValue;
+    showJurisdictionCounty = supportsCounty && Boolean(jurisdictionCountyDisplay);
   }
   $: {
     const line1 = cleanMetadataValue(metadata?.AddressLine1);
@@ -460,6 +469,26 @@
     const phoneDigits = rawPhone.replace(/\D+/g, "");
     phoneHref = phoneDigits ? `tel:${phoneDigits}` : "";
   }
+
+  $: neighboringAgencies = (() => {
+    const props = boundaryData?.features?.[0]?.properties ?? {};
+    const sources = [props.touching_agencies, props.contained_agencies];
+    const list = sources.flatMap((value) => (Array.isArray(value) ? value : []));
+    if (!list.length) return [];
+    const seen = new Set();
+    return list
+      .map((entry) => {
+        if (!entry || typeof entry !== "object") return null;
+        const slug = entry.agency_slug || entry.slug || entry.id;
+        if (!slug || seen.has(slug)) return null;
+        seen.add(slug);
+        return {
+          slug,
+          label: entry.agency_name || entry.name || entry.agency || slug,
+        };
+      })
+      .filter(Boolean);
+  })();
   $: phoneDisplay = rawPhone ? formatPhone(rawPhone) : "";
 
   $: {
@@ -959,6 +988,16 @@
             </dd>
           </div>
         {/if}
+        {#if showJurisdictionCounty}
+          <div class="grid gap-1 py-1.5 grid-cols-[110px_1fr] items-start">
+            <dt class="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+              County
+            </dt>
+            <dd class="text-sm font-medium text-slate-700">
+              {jurisdictionCountyDisplay}
+            </dd>
+          </div>
+        {/if}
         <div class="grid gap-1 py-1.5 grid-cols-[110px_1fr] items-start">
           <dt class="text-[11px] uppercase tracking-[0.2em] text-slate-400">
             {agency_type_label()}
@@ -1012,6 +1051,22 @@
             {/if}
           </dd>
         </div>
+        {#if neighboringAgencies.length}
+          <div class="grid gap-1 py-1.5 grid-cols-[110px_1fr] items-start">
+            <dt class="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+              Neighboring agencies
+            </dt>
+            <dd class="text-sm font-medium text-slate-700">
+              <div class="flex flex-wrap gap-x-3 gap-y-1">
+                {#each neighboringAgencies as neighbor}
+                  <a class="underline" href={`/agency/${neighbor.slug}`}>
+                    {neighbor.label}
+                  </a>
+                {/each}
+              </div>
+            </dd>
+          </div>
+        {/if}
       </dl>
       <div class="mt-4">
         <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500">
@@ -1045,6 +1100,7 @@
         agencyData?.agency_metadata?.agency_slug ??
         data.slug}
       pmtilesUrl="/data/tiles/mo_jurisdictions_2024_500k.pmtiles"
+      boundaryDataOverride={boundaryData}
     />
   </section>
 

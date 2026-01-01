@@ -13,6 +13,7 @@
   export let pmtilesUrl = "";
   export let pmtilesSourceLayer = "counties";
   export let agencyBoundaryBasePath = "/data/agency_boundaries";
+  export let boundaryDataOverride = null;
 
   let MapLibre;
   let Marker;
@@ -101,13 +102,19 @@
 
   $: boundaryUrl = agencyId ? `${agencyBoundaryBasePath}/${agencyId}.geojson` : "";
 
-  $: if (!boundaryUrl) {
+  $: if (boundaryDataOverride) {
+    boundaryData = boundaryDataOverride;
+    boundaryBounds = null;
+    lastBoundaryUrl = "";
+  }
+
+  $: if (!boundaryDataOverride && !boundaryUrl) {
     boundaryData = null;
     boundaryBounds = null;
     lastBoundaryUrl = "";
   }
 
-  $: if (browser && boundaryUrl && boundaryUrl !== lastBoundaryUrl) {
+  $: if (!boundaryDataOverride && browser && boundaryUrl && boundaryUrl !== lastBoundaryUrl) {
     lastBoundaryUrl = boundaryUrl;
     fetch(boundaryUrl)
       .then((response) => (response.ok ? response.json() : null))
