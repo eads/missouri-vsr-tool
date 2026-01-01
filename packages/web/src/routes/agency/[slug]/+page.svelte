@@ -384,7 +384,8 @@
   let jurisdictionCountyDisplay = "";
   let showJurisdiction = false;
   let showJurisdictionCounty = false;
-  let neighboringAgencies = [];
+  let touchingAgencies = [];
+  let containedAgencies = [];
   let boundaryData = null;
   let addressState = "";
   let stopVolumeLead = "";
@@ -470,13 +471,10 @@
     phoneHref = phoneDigits ? `tel:${phoneDigits}` : "";
   }
 
-  $: neighboringAgencies = (() => {
-    const props = boundaryData?.features?.[0]?.properties ?? {};
-    const sources = [props.touching_agencies, props.contained_agencies];
-    const list = sources.flatMap((value) => (Array.isArray(value) ? value : []));
-    if (!list.length) return [];
+  const normalizeAgencies = (entries) => {
+    if (!Array.isArray(entries) || !entries.length) return [];
     const seen = new Set();
-    return list
+    return entries
       .map((entry) => {
         if (!entry || typeof entry !== "object") return null;
         const slug = entry.agency_slug || entry.slug || entry.id;
@@ -488,6 +486,16 @@
         };
       })
       .filter(Boolean);
+  };
+
+  $: touchingAgencies = (() => {
+    const props = boundaryData?.features?.[0]?.properties ?? {};
+    return normalizeAgencies(props.touching_agencies);
+  })();
+
+  $: containedAgencies = (() => {
+    const props = boundaryData?.features?.[0]?.properties ?? {};
+    return normalizeAgencies(props.contained_agencies);
   })();
   $: phoneDisplay = rawPhone ? formatPhone(rawPhone) : "";
 
@@ -1051,22 +1059,6 @@
             {/if}
           </dd>
         </div>
-        {#if neighboringAgencies.length}
-          <div class="grid gap-1 py-1.5 grid-cols-[110px_1fr] items-start">
-            <dt class="text-[11px] uppercase tracking-[0.2em] text-slate-400">
-              {m?.agency_neighboring_agencies_label?.() ?? "Neighboring agencies"}
-            </dt>
-            <dd class="text-sm font-medium text-slate-700">
-              <div class="flex flex-wrap gap-x-3 gap-y-1">
-                {#each neighboringAgencies as neighbor}
-                  <a class="underline" href={`/agency/${neighbor.slug}`}>
-                    {neighbor.label}
-                  </a>
-                {/each}
-              </div>
-            </dd>
-          </div>
-        {/if}
       </dl>
       <div class="mt-4">
         <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500">
@@ -1103,6 +1095,44 @@
       boundaryDataOverride={boundaryData}
     />
   </section>
+
+  {#if touchingAgencies.length || containedAgencies.length}
+    <section class="mb-10">
+      <h2 class="mb-4 text-xl font-semibold text-slate-900">
+        {m?.agency_neighbors_heading?.() ?? "Neighboring agencies"}
+      </h2>
+      <div class="space-y-4 rounded-2xl border border-slate-200 bg-white p-4">
+        {#if touchingAgencies.length}
+          <div>
+            <h3 class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+              {m?.agency_neighbors_touching_label?.() ?? "Touching agencies"}
+            </h3>
+            <div class="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-sm text-slate-700">
+              {#each touchingAgencies as neighbor}
+                <a class="underline" href={`/agency/${neighbor.slug}`}>
+                  {neighbor.label}
+                </a>
+              {/each}
+            </div>
+          </div>
+        {/if}
+        {#if containedAgencies.length}
+          <div>
+            <h3 class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+              {m?.agency_neighbors_contained_label?.() ?? "Contained agencies"}
+            </h3>
+            <div class="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-sm text-slate-700">
+              {#each containedAgencies as neighbor}
+                <a class="underline" href={`/agency/${neighbor.slug}`}>
+                  {neighbor.label}
+                </a>
+              {/each}
+            </div>
+          </div>
+        {/if}
+      </div>
+    </section>
+  {/if}
 
 
   <section class="mb-10">
