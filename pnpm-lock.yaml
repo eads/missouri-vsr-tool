@@ -51,6 +51,9 @@ importers:
         specifier: ^1.0.2
         version: 1.0.2(maplibre-gl@5.15.0)(svelte@5.46.0)
     devDependencies:
+      '@protomaps/basemaps':
+        specifier: ^5.7.0
+        version: 5.7.0
       '@sveltejs/kit':
         specifier: ^2.0.0
         version: 2.49.2(@sveltejs/vite-plugin-svelte@4.0.4(svelte@5.46.0)(vite@5.4.21(lightningcss@1.30.2)))(svelte@5.46.0)(vite@5.4.21(lightningcss@1.30.2))
@@ -345,6 +348,10 @@ packages:
 
   '@polka/url@1.0.0-next.29':
     resolution: {integrity: sha512-wwQAWhWSuHaag8c4q/KN/vCoeOJYshAIvMQwD4GpSb3OiZklFfvAgmj0VCBBImRpuF/aFgIRzllXlVX93Jevww==}
+
+  '@protomaps/basemaps@5.7.0':
+    resolution: {integrity: sha512-vIInnzVSxHuOcvj1BFGkCjlFxG/9a1GV23t98kGEVcPUM7aEqTnf6loUHTRJYX5eCz+WCO16N0aibr1SLg830Q==}
+    hasBin: true
 
   '@rollup/rollup-android-arm-eabi@4.53.5':
     resolution: {integrity: sha512-iDGS/h7D8t7tvZ1t6+WPK04KD0MwzLZrG0se1hzBjSi5fyxlsiggoJHwh18PCFNn7tG43OWb6pdZ6Y+rMlmyNQ==}
@@ -1996,6 +2003,8 @@ snapshots:
       - supports-color
 
   '@polka/url@1.0.0-next.29': {}
+
+  '@protomaps/basemaps@5.7.0': {}
 
   '@rollup/rollup-android-arm-eabi@4.53.5':
     optional: true

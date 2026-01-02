@@ -1092,6 +1092,8 @@
       agencyId={agencyData?.agency_metadata?.agency_id ??
         agencyData?.agency_metadata?.agency_slug ??
         data.slug}
+      basemapPmtilesUrl="https://pmtiles.grupovisual.org/latest.pmtiles"
+      basemapStyleUrl="/map/style.json"
       pmtilesUrl="/data/tiles/mo_jurisdictions_2024_500k.pmtiles"
       boundaryDataOverride={boundaryData}
     />

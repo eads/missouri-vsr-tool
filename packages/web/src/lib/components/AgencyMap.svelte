@@ -1,5 +1,5 @@
 <script>
-  import { onMount } from "svelte";
+  import { onDestroy, onMount } from "svelte";
   import { browser } from "$app/environment";
 
   export let addressResponse = null;
@@ -14,6 +14,8 @@
   export let pmtilesSourceLayer = "counties";
   export let agencyBoundaryBasePath = "/data/agency_boundaries";
   export let boundaryDataOverride = undefined;
+  export let basemapPmtilesUrl = "";
+  export let basemapStyleUrl = "/map/style.json";
 
   let MapLibre;
   let Marker;
@@ -33,8 +35,15 @@
   let pmtilesProtocol;
   let pmtilesReady = false;
   let pmtilesSourceUrl = "";
+  let maplibreModule;
+  let hoverHandlersBound = false;
+  let cleanupHoverHandlers = () => {};
+  let hoverFilterCounties = ["==", ["get", "geoid"], ""];
+  let hoverFilterPlaces = ["==", ["get", "geoid"], ""];
+  let popup;
+  let lastHoverKey = "";
 
-  const mapStyle = "https://tiles.openfreemap.org/styles/bright";
+  let mapStyle = basemapStyleUrl;
   const defaultCenter = [-92.6037607, 38.5767017];
 
   const boundaryFillPaint = {
@@ -45,15 +54,32 @@
     "line-color": "#1d4ed8",
     "line-width": 2,
   };
+  const countiesFillPaint = {
+    "fill-color": "#94a3b8",
+    "fill-opacity": 0.08,
+  };
+  const placesFillPaint = {
+    "fill-color": "#93c5fd",
+    "fill-opacity": 0.07,
+  };
   const countiesLinePaint = {
-    "line-color": "#94a3b8",
-    "line-width": 0.6,
-    "line-opacity": 0.35,
+    "line-color": "#475569",
+    "line-width": 1.6,
+    "line-opacity": 0.75,
   };
   const placesLinePaint = {
-    "line-color": "#cbd5f5",
-    "line-width": 0.6,
-    "line-opacity": 0.4,
+    "line-color": "#64748b",
+    "line-width": 1.4,
+    "line-opacity": 0.7,
+  };
+  const hoverLinePaint = {
+    "line-color": "#020617",
+    "line-width": 3.6,
+    "line-opacity": 0.95,
+  };
+  const hoverFillPaint = {
+    "fill-color": "#1e3a8a",
+    "fill-opacity": 0.16,
   };
 
   const getLocation = (response) => response?.results?.[0]?.location;
@@ -85,11 +111,39 @@
     FillLayer = mod.FillLayer;
     LineLayer = mod.LineLayer;
 
+    if (basemapPmtilesUrl) {
+      try {
+        const response = await fetch(basemapStyleUrl);
+        if (!response.ok) {
+          throw new Error(`Failed to load basemap style: ${response.status}`);
+        }
+        const style = await response.json();
+        const pmtilesStyleUrl = basemapPmtilesUrl.startsWith("pmtiles://")
+          ? basemapPmtilesUrl
+          : `pmtiles://${basemapPmtilesUrl}`;
+        if (style?.sources && typeof style.sources === "object") {
+          for (const key of Object.keys(style.sources)) {
+            const source = style.sources[key];
+            if (source?.type === "vector") {
+              style.sources[key] = {
+                ...source,
+                url: pmtilesStyleUrl,
+              };
+              delete style.sources[key].tiles;
+            }
+          }
+        }
+        mapStyle = style;
+      } catch (error) {
+        mapStyle = basemapStyleUrl;
+      }
+    }
+
     if (pmtilesUrl) {
       try {
         const pmtilesModule = await import("pmtiles");
         pmtilesProtocol = new pmtilesModule.Protocol();
-        const maplibreModule = await import(/* @vite-ignore */ "maplibre-gl");
+        maplibreModule = await import(/* @vite-ignore */ "maplibre-gl");
         maplibreModule.addProtocol?.("pmtiles", pmtilesProtocol.tile);
         pmtilesReady = true;
       } catch (error) {
@@ -100,12 +154,11 @@
     mapReady = true;
   });
 
-  const handleMapLoad = (event) => {
-    const nextMap = event?.target ?? event?.detail?.map ?? event?.detail ?? null;
-    if (nextMap && mapInstance !== nextMap) {
-      mapInstance = nextMap;
-    }
-  };
+  onDestroy(() => {
+    cleanupHoverHandlers();
+    popup?.remove?.();
+    popup = null;
+  });
 
   $: boundaryUrl = agencyId ? `${agencyBoundaryBasePath}/${agencyId}.geojson` : "";
 
@@ -201,12 +254,110 @@
     }
   };
 
+  const handleMapLoad = (event) => {
+    const nextMap = event?.target ?? event?.detail?.map ?? event?.detail ?? null;
+    if (nextMap && mapInstance !== nextMap) {
+      cleanupHoverHandlers();
+      hoverHandlersBound = false;
+      mapInstance = nextMap;
+      if (boundaryBounds) {
+        fitToBounds();
+      }
+    }
+  };
+
   $: if (boundaryData) {
     updateBoundaryBounds();
   }
 
   $: if (boundaryBounds && mapInstance) {
     fitToBounds();
+  }
+
+  const formatStops = (value) => {
+    const numeric = typeof value === "string" ? Number(value) : value;
+    if (!Number.isFinite(numeric)) return null;
+    return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(numeric);
+  };
+
+  const showPopup = (event, props) => {
+    if (!mapInstance || !maplibreModule) return;
+    const name = props?.agency_name || props?.namelsad || props?.name;
+    const stopsValue = formatStops(props?.total_stops);
+    if (!name) return;
+    if (!popup) {
+      popup = new maplibreModule.Popup({
+        closeButton: false,
+        closeOnClick: false,
+        className: "agency-map-popup",
+      });
+    }
+    const subtitle = stopsValue ? `${stopsValue} stops` : null;
+    const html = `
+      <div style="font-size:12px;font-weight:600;color:#0f172a;">${name}</div>
+      ${subtitle ? `<div style="margin-top:2px;font-size:11px;color:#475569;">${subtitle}</div>` : ""}
+    `;
+    popup.setLngLat(event.lngLat).setHTML(html).addTo(mapInstance);
+  };
+
+  const clearHover = () => {
+    hoverFilterCounties = ["==", ["get", "geoid"], ""];
+    hoverFilterPlaces = ["==", ["get", "geoid"], ""];
+    lastHoverKey = "";
+    popup?.remove?.();
+    if (mapInstance) {
+      mapInstance.getCanvas().style.cursor = "";
+    }
+  };
+
+  const bindHoverHandlers = () => {
+    if (!mapInstance || hoverHandlersBound) return;
+    const hasCounties = mapInstance.getLayer?.("mo-jurisdictions-counties-fill");
+    const hasPlaces = mapInstance.getLayer?.("mo-jurisdictions-places-fill");
+    if (!hasCounties || !hasPlaces) {
+      mapInstance.once("idle", bindHoverHandlers);
+      return;
+    }
+    hoverHandlersBound = true;
+    const handleMove = (layerType) => (event) => {
+      const feature = event?.features?.[0];
+      const props = feature?.properties || {};
+      const geoid = props?.geoid;
+      const nextKey = geoid ? `${layerType}:${geoid}` : "";
+      if (nextKey && nextKey === lastHoverKey) return;
+      lastHoverKey = nextKey;
+      if (geoid) {
+        if (layerType === "counties") {
+          hoverFilterCounties = ["==", ["get", "geoid"], geoid];
+          hoverFilterPlaces = ["==", ["get", "geoid"], ""];
+        } else {
+          hoverFilterPlaces = ["==", ["get", "geoid"], geoid];
+          hoverFilterCounties = ["==", ["get", "geoid"], ""];
+        }
+      }
+      if (mapInstance) {
+        mapInstance.getCanvas().style.cursor = "pointer";
+      }
+      showPopup(event, props);
+    };
+    const handleLeave = () => clearHover();
+
+    const moveCounties = handleMove("counties");
+    const movePlaces = handleMove("places");
+    mapInstance.on("mousemove", "mo-jurisdictions-counties-fill", moveCounties);
+    mapInstance.on("mousemove", "mo-jurisdictions-places-fill", movePlaces);
+    mapInstance.on("mouseleave", "mo-jurisdictions-counties-fill", handleLeave);
+    mapInstance.on("mouseleave", "mo-jurisdictions-places-fill", handleLeave);
+    cleanupHoverHandlers = () => {
+      mapInstance.off("mousemove", "mo-jurisdictions-counties-fill", moveCounties);
+      mapInstance.off("mousemove", "mo-jurisdictions-places-fill", movePlaces);
+      mapInstance.off("mouseleave", "mo-jurisdictions-counties-fill", handleLeave);
+      mapInstance.off("mouseleave", "mo-jurisdictions-places-fill", handleLeave);
+    };
+  };
+
+  $: if (mapInstance && pmtilesReady && pmtilesSourceUrl) {
+    bindHoverHandlers();
   }
 </script>
 
@@ -222,10 +373,27 @@
         style={mapStyle}
         center={center}
         zoom={14}
+        attributionControl={true}
+        customAttribution="© OpenStreetMap contributors"
         onload={handleMapLoad}
       >
         {#if pmtilesReady && pmtilesSourceUrl && VectorTileSource}
           <svelte:component this={VectorTileSource} id="mo-jurisdictions" url={pmtilesSourceUrl} />
+          <svelte:component
+            this={FillLayer}
+            id="mo-jurisdictions-counties-fill"
+            source="mo-jurisdictions"
+            source-layer="counties"
+            paint={countiesFillPaint}
+          />
+          <svelte:component
+            this={FillLayer}
+            id="mo-jurisdictions-counties-hover"
+            source="mo-jurisdictions"
+            source-layer="counties"
+            paint={hoverFillPaint}
+            filter={hoverFilterCounties}
+          />
           <svelte:component
             this={LineLayer}
             id="mo-jurisdictions-counties"
@@ -235,10 +403,41 @@
           />
           <svelte:component
             this={LineLayer}
+            id="mo-jurisdictions-counties-hover"
+            source="mo-jurisdictions"
+            source-layer="counties"
+            paint={hoverLinePaint}
+            filter={hoverFilterCounties}
+          />
+          <svelte:component
+            this={FillLayer}
+            id="mo-jurisdictions-places-fill"
+            source="mo-jurisdictions"
+            source-layer="places"
+            paint={placesFillPaint}
+          />
+          <svelte:component
+            this={FillLayer}
+            id="mo-jurisdictions-places-hover"
+            source="mo-jurisdictions"
+            source-layer="places"
+            paint={hoverFillPaint}
+            filter={hoverFilterPlaces}
+          />
+          <svelte:component
+            this={LineLayer}
             id="mo-jurisdictions-places"
             source="mo-jurisdictions"
             source-layer="places"
             paint={placesLinePaint}
+          />
+          <svelte:component
+            this={LineLayer}
+            id="mo-jurisdictions-places-hover"
+            source="mo-jurisdictions"
+            source-layer="places"
+            paint={hoverLinePaint}
+            filter={hoverFilterPlaces}
           />
         {/if}
 
