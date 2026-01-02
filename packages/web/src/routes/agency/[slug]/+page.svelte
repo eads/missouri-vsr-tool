@@ -381,7 +381,12 @@
   let rawPhone = "";
   let phoneHref = "";
   let jurisdictionDisplay = "";
+  let jurisdictionCountyDisplay = "";
   let showJurisdiction = false;
+  let showJurisdictionCounty = false;
+  let touchingAgencies = [];
+  let containedAgencies = [];
+  let boundaryData = null;
   let addressState = "";
   let stopVolumeLead = "";
   let stopVolumeSegmentLabel = "";
@@ -399,6 +404,7 @@
     return value;
   };
   $: agencyType = cleanMetadataValue(metadata?.AgencyType);
+  $: boundaryData = data?.boundary ?? null;
   $: {
     const typeKey = agencyType.toLowerCase();
     const cityValue =
@@ -407,7 +413,8 @@
       cleanMetadataValue(metadata?.geocode_address_response?.results?.[0]?.address_components?.city);
     const countyValue =
       cleanMetadataValue(metadata?.geocode_jurisdiction_county) ||
-      cleanMetadataValue(metadata?.geocode_address_county);
+      cleanMetadataValue(metadata?.geocode_address_county) ||
+      cleanMetadataValue(metadata?.County);
     const stateValue =
       cleanMetadataValue(metadata?.geocode_jurisdiction_response?.results?.[0]?.address_components?.state) ||
       cleanMetadataValue(metadata?.geocode_address_response?.results?.[0]?.address_components?.state) ||
@@ -418,6 +425,7 @@
     const isMunicipal = typeKey.includes("municipal");
     const isCounty = typeKey.includes("county");
     const isStateAgency = typeKey.includes("state");
+    const supportsCounty = !isStateAgency;
 
     if (isRail) {
       jurisdictionDisplay = "";
@@ -438,6 +446,8 @@
       jurisdictionDisplay = countyValue || cityValue || stateValue;
       showJurisdiction = Boolean(jurisdictionDisplay);
     }
+    jurisdictionCountyDisplay = countyValue;
+    showJurisdictionCounty = supportsCounty;
   }
   $: {
     const line1 = cleanMetadataValue(metadata?.AddressLine1);
@@ -460,6 +470,33 @@
     const phoneDigits = rawPhone.replace(/\D+/g, "");
     phoneHref = phoneDigits ? `tel:${phoneDigits}` : "";
   }
+
+  const normalizeAgencies = (entries) => {
+    if (!Array.isArray(entries) || !entries.length) return [];
+    const seen = new Set();
+    return entries
+      .map((entry) => {
+        if (!entry || typeof entry !== "object") return null;
+        const slug = entry.agency_slug || entry.slug || entry.id;
+        if (!slug || seen.has(slug)) return null;
+        seen.add(slug);
+        return {
+          slug,
+          label: entry.agency_name || entry.name || entry.agency || slug,
+        };
+      })
+      .filter(Boolean);
+  };
+
+  $: touchingAgencies = (() => {
+    const props = boundaryData?.features?.[0]?.properties ?? {};
+    return normalizeAgencies(props.touching_agencies);
+  })();
+
+  $: containedAgencies = (() => {
+    const props = boundaryData?.features?.[0]?.properties ?? {};
+    return normalizeAgencies(props.contained_agencies);
+  })();
   $: phoneDisplay = rawPhone ? formatPhone(rawPhone) : "";
 
   $: {
@@ -959,6 +996,16 @@
             </dd>
           </div>
         {/if}
+        {#if showJurisdictionCounty}
+          <div class="grid gap-1 py-1.5 grid-cols-[110px_1fr] items-start">
+            <dt class="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+              {m?.agency_county_label?.() ?? "County"}
+            </dt>
+            <dd class="text-sm font-medium text-slate-700">
+              {jurisdictionCountyDisplay || "—"}
+            </dd>
+          </div>
+        {/if}
         <div class="grid gap-1 py-1.5 grid-cols-[110px_1fr] items-start">
           <dt class="text-[11px] uppercase tracking-[0.2em] text-slate-400">
             {agency_type_label()}
@@ -1038,11 +1085,57 @@
       heading={agency_location_heading()}
       loadingLabel={agency_map_loading()}
       addressResponse={geocodeAddressResponse}
+      fallbackResponse={geocodeJurisdictionResponse}
       showHeading={false}
       className="mb-0"
       heightClass="h-[280px] md:h-[380px]"
+      agencyId={agencyData?.agency_metadata?.agency_id ??
+        agencyData?.agency_metadata?.agency_slug ??
+        data.slug}
+      basemapPmtilesUrl="https://pmtiles.grupovisual.org/latest.pmtiles"
+      basemapStyleUrl="/map/style.json"
+      pmtilesUrl="/data/tiles/mo_jurisdictions_2024_500k.pmtiles"
+      boundaryDataOverride={boundaryData}
     />
   </section>
+
+  {#if touchingAgencies.length || containedAgencies.length}
+    <section class="mb-10">
+      <h2 class="mb-4 text-xl font-semibold text-slate-900">
+        {m?.agency_neighbors_heading?.() ?? "Neighboring agencies"}
+      </h2>
+      <div class="space-y-4 rounded-2xl border border-slate-200 bg-white p-4">
+        {#if touchingAgencies.length}
+          <div>
+            <h3 class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+              {m?.agency_neighbors_touching_label?.() ?? "Touching agencies"}
+            </h3>
+            <div class="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-sm text-slate-700">
+              {#each touchingAgencies as neighbor}
+                <a class="underline" href={`/agency/${neighbor.slug}`}>
+                  {neighbor.label}
+                </a>
+              {/each}
+            </div>
+          </div>
+        {/if}
+        {#if containedAgencies.length}
+          <div>
+            <h3 class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+              {m?.agency_neighbors_contained_label?.() ?? "Contained agencies"}
+            </h3>
+            <div class="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-sm text-slate-700">
+              {#each containedAgencies as neighbor}
+                <a class="underline" href={`/agency/${neighbor.slug}`}>
+                  {neighbor.label}
+                </a>
+              {/each}
+            </div>
+          </div>
+        {/if}
+      </div>
+    </section>
+  {/if}
 
 
   <section class="mb-10">

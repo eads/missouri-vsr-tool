@@ -57,7 +57,7 @@
   "agency_address_label": "Address",
   "agency_phone_label": "Phone",
   "agency_location_heading": "Location",
-  "agency_map_loading": "Map loading\u2026",
+  "agency_map_loading": "Map loading…",
   "agency_metadata_heading": "Agency metadata",
   "agency_geocode_summary": "View geocode JSON",
   "agency_yearly_data_heading": "Yearly data",
@@ -212,5 +212,9 @@
   "metric_traffic-violation": "Traffic Violation",
   "metric_us-hwy": "US Hwy",
   "metric_warning": "Warning",
-  "metric_weapon": "Weapon"
+  "metric_weapon": "Weapon",
+  "agency_county_label": "County",
+  "agency_neighbors_heading": "Neighboring agencies",
+  "agency_neighbors_touching_label": "Touching agencies",
+  "agency_neighbors_contained_label": "Contained agencies"
 }
