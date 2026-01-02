@@ -15,7 +15,7 @@
   export let agencyBoundaryBasePath = "/data/agency_boundaries";
   export let boundaryDataOverride = undefined;
   export let basemapPmtilesUrl = "";
-  export let basemapStyleUrl = "/map/style.json";
+  export let basemapStyleUrl = "/map/style.en.json";
 
   let MapLibre;
   let Marker;

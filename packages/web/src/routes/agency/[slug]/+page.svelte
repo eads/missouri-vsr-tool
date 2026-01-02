@@ -11,6 +11,7 @@
   import MetricChartModal from "$lib/components/MetricChartModal.svelte";
   import { onMount, tick } from "svelte";
   import * as m from "$lib/paraglide/messages";
+  import { getLocale } from "$lib/paraglide/runtime";
   import {
     agency_geocode_summary,
     agency_location_heading,
@@ -92,6 +93,8 @@
   let geocodeBlocks = [];
   let gridTableEl;
   let agencyCount = 0;
+  let locale = "en";
+  let basemapStyleUrl = "/map/style.en.json";
 
   $: agencyData = data.data;
   $: baselines = Array.isArray(data.baselines) ? data.baselines : [];
@@ -119,6 +122,15 @@
     acc[year].push(row);
     return acc;
   }, {});
+
+  $: {
+    try {
+      locale = getLocale();
+    } catch {
+      locale = "en";
+    }
+    basemapStyleUrl = `/map/style.${locale}.json`;
+  }
 
   $: years = Object.keys(rowsByYear).sort((a, b) => {
     const numA = Number(a);
@@ -1093,7 +1105,7 @@
         agencyData?.agency_metadata?.agency_slug ??
         data.slug}
       basemapPmtilesUrl="https://pmtiles.grupovisual.org/latest.pmtiles"
-      basemapStyleUrl="/map/style.json"
+      basemapStyleUrl={basemapStyleUrl}
       pmtilesUrl="/data/tiles/mo_jurisdictions_2024_500k.pmtiles"
       boundaryDataOverride={boundaryData}
     />

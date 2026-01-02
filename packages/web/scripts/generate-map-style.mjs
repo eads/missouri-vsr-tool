@@ -7,6 +7,8 @@ const pmtilesUrl =
   process.argv[2] ||
   process.env.PMTILES_URL ||
   "https://pmtiles.grupovisual.org/latest.pmtiles";
+const lang = process.argv[3] || process.env.MAP_LANG || "en";
+const outputName = process.argv[4] || process.env.MAP_STYLE_OUTPUT || `style.${lang}.json`;
 
 const bio = {
   background: "#dddddd",
@@ -48,11 +50,11 @@ const style = {
       url: `pmtiles://${pmtilesUrl}`,
     },
   },
-  layers: layers("protomaps", bio, { lang: "en" }),
+  layers: layers("protomaps", bio, { lang }),
 };
 
 const here = dirname(fileURLToPath(import.meta.url));
-const outputPath = resolve(here, "../static/map/style.json");
+const outputPath = resolve(here, "../static/map", outputName);
 
 await writeFile(outputPath, JSON.stringify(style, null, 2));
-console.log(`Wrote ${outputPath}`);
+console.log(`Wrote ${outputPath} (lang=${lang})`);
