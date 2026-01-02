@@ -1,5 +1,7 @@
 <script>
   import { onDestroy, onMount } from "svelte";
+  import { goto } from "$app/navigation";
+  import { getLocale } from "$lib/paraglide/runtime";
   import { browser } from "$app/environment";
 
   export let addressResponse = null;
@@ -42,6 +44,9 @@
   let hoverFilterPlaces = ["==", ["get", "geoid"], ""];
   let popup;
   let lastHoverKey = "";
+  let hoverTimer = null;
+  let pendingHover = null;
+  const hoverDelayMs = 120;
 
   let mapStyle = basemapStyleUrl;
   const defaultCenter = [-92.6037607, 38.5767017];
@@ -72,14 +77,27 @@
     "line-width": 1.4,
     "line-opacity": 0.7,
   };
-  const hoverLinePaint = {
+  const hoverLinePaintCounties = {
+    "line-color": "#1f2937",
+    "line-width": 2.6,
+    "line-opacity": 0.75,
+    "line-opacity-transition": { duration: 180, delay: 0 },
+  };
+  const hoverFillPaintCounties = {
+    "fill-color": "#1e3a8a",
+    "fill-opacity": 0.08,
+    "fill-opacity-transition": { duration: 180, delay: 0 },
+  };
+  const hoverLinePaintPlaces = {
     "line-color": "#020617",
     "line-width": 3.6,
     "line-opacity": 0.95,
+    "line-opacity-transition": { duration: 180, delay: 0 },
   };
-  const hoverFillPaint = {
+  const hoverFillPaintPlaces = {
     "fill-color": "#1e3a8a",
     "fill-opacity": 0.16,
+    "fill-opacity-transition": { duration: 180, delay: 0 },
   };
 
   const getLocation = (response) => response?.results?.[0]?.location;
@@ -158,6 +176,10 @@
     cleanupHoverHandlers();
     popup?.remove?.();
     popup = null;
+    if (hoverTimer) {
+      clearTimeout(hoverTimer);
+      hoverTimer = null;
+    }
   });
 
   $: boundaryUrl = agencyId ? `${agencyBoundaryBasePath}/${agencyId}.geojson` : "";
@@ -300,6 +322,17 @@
     popup.setLngLat(event.lngLat).setHTML(html).addTo(mapInstance);
   };
 
+  const buildAgencyHref = (slug) => {
+    if (!slug) return "";
+    let locale = "en";
+    try {
+      locale = getLocale();
+    } catch {
+      locale = "en";
+    }
+    return `/${locale}/agency/${slug}`;
+  };
+
   const clearHover = () => {
     hoverFilterCounties = ["==", ["get", "geoid"], ""];
     hoverFilterPlaces = ["==", ["get", "geoid"], ""];
@@ -308,6 +341,42 @@
     if (mapInstance) {
       mapInstance.getCanvas().style.cursor = "";
     }
+  };
+
+  const applyHover = (layerType, event, props) => {
+    const geoid = props?.geoid;
+    const nextKey = geoid ? `${layerType}:${geoid}` : "";
+    if (nextKey && nextKey === lastHoverKey) return;
+    lastHoverKey = nextKey;
+    if (geoid) {
+      if (layerType === "counties") {
+        hoverFilterCounties = ["==", ["get", "geoid"], geoid];
+        hoverFilterPlaces = ["==", ["get", "geoid"], ""];
+      } else {
+        hoverFilterPlaces = ["==", ["get", "geoid"], geoid];
+        hoverFilterCounties = ["==", ["get", "geoid"], ""];
+      }
+    }
+    if (mapInstance) {
+      mapInstance.getCanvas().style.cursor = "pointer";
+    }
+    showPopup(event, props);
+  };
+
+  const scheduleHover = (layerType, event) => {
+    const feature = event?.features?.[0];
+    const props = feature?.properties || {};
+    const payload = { layerType, event, props };
+    pendingHover = payload;
+    if (hoverTimer) return;
+    hoverTimer = setTimeout(() => {
+      const next = pendingHover;
+      pendingHover = null;
+      hoverTimer = null;
+      if (next) {
+        applyHover(next.layerType, next.event, next.props);
+      }
+    }, hoverDelayMs);
   };
 
   const bindHoverHandlers = () => {
@@ -319,28 +388,26 @@
       return;
     }
     hoverHandlersBound = true;
-    const handleMove = (layerType) => (event) => {
+    const handleMove = (layerType) => (event) => scheduleHover(layerType, event);
+    const handleLeave = () => {
+      if (hoverTimer) {
+        clearTimeout(hoverTimer);
+        hoverTimer = null;
+        pendingHover = null;
+      }
+      clearHover();
+    };
+    const handleClick = (event) => {
       const feature = event?.features?.[0];
       const props = feature?.properties || {};
-      const geoid = props?.geoid;
-      const nextKey = geoid ? `${layerType}:${geoid}` : "";
-      if (nextKey && nextKey === lastHoverKey) return;
-      lastHoverKey = nextKey;
-      if (geoid) {
-        if (layerType === "counties") {
-          hoverFilterCounties = ["==", ["get", "geoid"], geoid];
-          hoverFilterPlaces = ["==", ["get", "geoid"], ""];
-        } else {
-          hoverFilterPlaces = ["==", ["get", "geoid"], geoid];
-          hoverFilterCounties = ["==", ["get", "geoid"], ""];
-        }
-      }
-      if (mapInstance) {
-        mapInstance.getCanvas().style.cursor = "pointer";
-      }
-      showPopup(event, props);
+      const slug = props?.agency_slug || props?.agency_id;
+      if (!slug) return;
+      const href = buildAgencyHref(slug);
+      if (!href) return;
+      goto(href).catch(() => {
+        window.location.href = href;
+      });
     };
-    const handleLeave = () => clearHover();
 
     const moveCounties = handleMove("counties");
     const movePlaces = handleMove("places");
@@ -348,11 +415,15 @@
     mapInstance.on("mousemove", "mo-jurisdictions-places-fill", movePlaces);
     mapInstance.on("mouseleave", "mo-jurisdictions-counties-fill", handleLeave);
     mapInstance.on("mouseleave", "mo-jurisdictions-places-fill", handleLeave);
+    mapInstance.on("click", "mo-jurisdictions-counties-fill", handleClick);
+    mapInstance.on("click", "mo-jurisdictions-places-fill", handleClick);
     cleanupHoverHandlers = () => {
       mapInstance.off("mousemove", "mo-jurisdictions-counties-fill", moveCounties);
       mapInstance.off("mousemove", "mo-jurisdictions-places-fill", movePlaces);
       mapInstance.off("mouseleave", "mo-jurisdictions-counties-fill", handleLeave);
       mapInstance.off("mouseleave", "mo-jurisdictions-places-fill", handleLeave);
+      mapInstance.off("click", "mo-jurisdictions-counties-fill", handleClick);
+      mapInstance.off("click", "mo-jurisdictions-places-fill", handleClick);
     };
   };
 
@@ -375,6 +446,13 @@
         zoom={14}
         attributionControl={true}
         customAttribution="© OpenStreetMap contributors"
+        dragRotate={false}
+        touchPitch={false}
+        touchZoomRotate={false}
+        pitchWithRotate={false}
+        maxPitch={0}
+        bearing={0}
+        pitch={0}
         onload={handleMapLoad}
       >
         {#if pmtilesReady && pmtilesSourceUrl && VectorTileSource}
@@ -391,7 +469,7 @@
             id="mo-jurisdictions-counties-hover"
             source="mo-jurisdictions"
             source-layer="counties"
-            paint={hoverFillPaint}
+            paint={hoverFillPaintCounties}
             filter={hoverFilterCounties}
           />
           <svelte:component
@@ -406,7 +484,7 @@
             id="mo-jurisdictions-counties-hover"
             source="mo-jurisdictions"
             source-layer="counties"
-            paint={hoverLinePaint}
+            paint={hoverLinePaintCounties}
             filter={hoverFilterCounties}
           />
           <svelte:component
@@ -421,7 +499,7 @@
             id="mo-jurisdictions-places-hover"
             source="mo-jurisdictions"
             source-layer="places"
-            paint={hoverFillPaint}
+            paint={hoverFillPaintPlaces}
             filter={hoverFilterPlaces}
           />
           <svelte:component
@@ -436,7 +514,7 @@
             id="mo-jurisdictions-places-hover"
             source="mo-jurisdictions"
             source-layer="places"
-            paint={hoverLinePaint}
+            paint={hoverLinePaintPlaces}
             filter={hoverFilterPlaces}
           />
         {/if}
