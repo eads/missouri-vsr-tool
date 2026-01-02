@@ -38,6 +38,6 @@ export default defineConfig({
     include: ["layerchart", "layercake"],
   },
   ssr: {
-    noExternal: ["layerchart", "layercake"],
+    noExternal: ["layerchart", "layercake", "@inlang/paraglide-js"],
   },
 });
