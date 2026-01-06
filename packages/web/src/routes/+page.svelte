@@ -33,7 +33,7 @@
 
 <main class="min-h-screen bg-white">
   <!-- Hero Section -->
-  <section class="bg-white px-6 py-10 md:py-16">
+  <section id="search" class="bg-white px-6 py-10 md:py-16">
     <div class="mx-auto max-w-4xl">
       <div class="text-center">
         <h1 class="text-5xl font-bold tracking-tight text-slate-900 md:text-6xl">
