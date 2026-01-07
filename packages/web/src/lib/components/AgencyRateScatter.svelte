@@ -2,6 +2,67 @@
   import { onMount } from "svelte";
   import * as m from "$lib/paraglide/messages";
 
+  type MetricYearSubset = {
+    agencies: string[];
+    years: Array<number | string>;
+    columns: string[];
+    rows: Record<string, Array<Array<number | null>>>;
+  };
+
+  type AxisScaleType = "linear" | "log";
+
+  const RATE_MULTIPLIER = 100;
+  const RATE_METRIC_MAP: Record<string, string> = {
+    "search-rate": "searches",
+    "searches-rate": "searches",
+    "arrest-rate": "arrests",
+    "arrests-rate": "arrests",
+    "citation-rate": "citations",
+    "citations-rate": "citations",
+    "contraband-hit-rate": "contraband",
+    "contraband-rate": "contraband",
+  };
+  const metricDataCache = new Map<string, Promise<MetricYearSubset>>();
+
+  const normalizePayload = (payload: unknown): MetricYearSubset => {
+    if (!payload || typeof payload !== "object") {
+      return { agencies: [], years: [], columns: [], rows: {} };
+    }
+    const record = payload as Record<string, unknown>;
+    return {
+      agencies: Array.isArray(record.agencies)
+        ? record.agencies.map((agency) => String(agency))
+        : [],
+      years: Array.isArray(record.years) ? record.years : [],
+      columns: Array.isArray(record.columns)
+        ? record.columns.map((column) => String(column))
+        : [],
+      rows:
+        record.rows && typeof record.rows === "object"
+          ? (record.rows as Record<string, Array<Array<number | null>>>)
+          : {},
+    };
+  };
+
+  const fetchMetricData = (url: string) => {
+    const cached = metricDataCache.get(url);
+    if (cached) return cached;
+    const request = fetch(url)
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Failed to load rate data.");
+        }
+        return response.json();
+      })
+      .then((payload) => normalizePayload(payload))
+      .catch((error) => {
+        metricDataCache.delete(url);
+        throw error;
+      });
+    metricDataCache.set(url, request);
+    return request;
+  };
+
   export let selectedYear: number | string;
   export let agencyName = "";
   export let title = "";
@@ -12,9 +73,14 @@
   export let minY: number | null = null;
   export let maxX: number | null = null;
   export let maxY: number | null = null;
-  export let xMetricUrl =
-    "/data/metric_year/rates-by-race--rates--contraband-hit-rate.json";
-  export let yMetricUrl = "/data/metric_year/rates-by-race--rates--search-rate.json";
+  export let minStops: number | null = null;
+  export let sizeByStops = false;
+  export let xScaleType: AxisScaleType = "linear";
+  export let yScaleType: AxisScaleType = "linear";
+  export let dataUrl = "/data/metric_year_subset.json";
+  export let xMetricKey = "rates-by-race--totals--contraband-rate";
+  export let yMetricKey = "rates-by-race--totals--searches-rate";
+  export let stopsMetricKey = "rates-by-race--totals--all-stops";
 
   let isLoading = true;
   let loadError = "";
@@ -26,12 +92,16 @@
     year: number;
     x: number;
     y: number;
+    stops?: number;
   }> = [];
   let yearPoints: typeof allPoints = [];
   let activePoint: (typeof allPoints)[number] | null = null;
 
   const numberFormatter = new Intl.NumberFormat(undefined, {
     maximumFractionDigits: 2,
+  });
+  const stopsFormatter = new Intl.NumberFormat(undefined, {
+    maximumFractionDigits: 0,
   });
 
   const normalize = (value: string) =>
@@ -45,13 +115,29 @@
     value === null || value === undefined || Number.isNaN(value)
       ? "—"
       : numberFormatter.format(value);
+  const formatStops = (value: number | null | undefined) =>
+    value === null || value === undefined || Number.isNaN(value)
+      ? "—"
+      : stopsFormatter.format(value);
 
-  const buildValueMap = (rows: Array<Record<string, unknown>>) => {
+  const buildValueMapFromRows = (
+    payload: MetricYearSubset,
+    rowKey: string,
+    columnName = "Total"
+  ) => {
     const byYear = new Map<number, Map<string, number>>();
-    rows.forEach((row) => {
-      const agency = String(row?.agency || "").trim();
-      const year = Number(row?.year);
-      const value = Number(row?.Total);
+    const rowData = payload.rows?.[rowKey];
+    if (!Array.isArray(rowData)) return byYear;
+    const valueIndex = payload.columns.indexOf(columnName);
+    if (valueIndex === -1) return byYear;
+    rowData.forEach((row) => {
+      if (!Array.isArray(row) || row.length <= valueIndex) return;
+      const agencyIndex = Number(row[0]);
+      const yearIndex = Number(row[1]);
+      const agency = payload.agencies?.[agencyIndex]?.trim() ?? "";
+      const year = Number(payload.years?.[yearIndex]);
+      const rawValue = row[valueIndex];
+      const value = rawValue === null || rawValue === undefined ? NaN : Number(rawValue);
       if (!agency || !Number.isFinite(year) || !Number.isFinite(value)) return;
       let yearMap = byYear.get(year);
       if (!yearMap) {
@@ -63,20 +149,92 @@
     return byYear;
   };
 
+  const buildRateMap = (
+    numeratorMap: Map<number, Map<string, number>>,
+    denominatorMap: Map<number, Map<string, number>>
+  ) => {
+    const byYear = new Map<number, Map<string, number>>();
+    numeratorMap.forEach((numeratorYearMap, year) => {
+      const denominatorYearMap = denominatorMap.get(year);
+      if (!denominatorYearMap) return;
+      numeratorYearMap.forEach((numeratorValue, agency) => {
+        const denominatorValue = denominatorYearMap.get(agency);
+        if (!Number.isFinite(denominatorValue) || !denominatorValue) return;
+        const value = (numeratorValue / denominatorValue) * RATE_MULTIPLIER;
+        if (!Number.isFinite(value)) return;
+        let yearMap = byYear.get(year);
+        if (!yearMap) {
+          yearMap = new Map();
+          byYear.set(year, yearMap);
+        }
+        yearMap.set(agency, value);
+      });
+    });
+    return byYear;
+  };
+
+  const getRateKeys = (rowKey: string) => {
+    const parts = rowKey.split("--");
+    if (parts.length !== 3) return null;
+    const [tableId, sectionId, metricId] = parts;
+    const numeratorMetricId = RATE_METRIC_MAP[metricId];
+    if (!numeratorMetricId) return null;
+    const totalsSectionId = sectionId === "rates" ? "totals" : sectionId;
+    return {
+      numeratorKey: `${tableId}--${totalsSectionId}--${numeratorMetricId}`,
+      denominatorKey: `${tableId}--${totalsSectionId}--all-stops`,
+    };
+  };
+
+  const buildMetricValueMap = (payload: MetricYearSubset, rowKey: string) => {
+    if (!rowKey) return new Map<number, Map<string, number>>();
+    if (payload.rows?.[rowKey]) {
+      return buildValueMapFromRows(payload, rowKey);
+    }
+    const rateKeys = getRateKeys(rowKey);
+    if (!rateKeys) return new Map<number, Map<string, number>>();
+    const numeratorMap = buildValueMapFromRows(payload, rateKeys.numeratorKey);
+    const denominatorMap = buildValueMapFromRows(payload, rateKeys.denominatorKey);
+    if (!numeratorMap.size || !denominatorMap.size) {
+      return new Map<number, Map<string, number>>();
+    }
+    return buildRateMap(numeratorMap, denominatorMap);
+  };
+
   const buildPoints = (
     yMap: Map<number, Map<string, number>>,
-    xMap: Map<number, Map<string, number>>
+    xMap: Map<number, Map<string, number>>,
+    stopsMap?: Map<number, Map<string, number>>,
+    minStopCount?: number | null
   ) => {
     const points: typeof allPoints = [];
     const excluded = new Set(excludeAgencies.map((agency) => normalize(agency)));
     const audit = [];
     yMap.forEach((yYearMap, year) => {
       const xYearMap = xMap.get(year);
+      const stopsYearMap = stopsMap?.get(year);
       if (!xYearMap) return;
       yYearMap.forEach((yValue, agency) => {
         const xValue = xYearMap.get(agency);
         if (!Number.isFinite(xValue)) return;
         if (excluded.has(normalize(agency))) return;
+        const stopValue = stopsYearMap?.get(agency);
+        if (
+          minStopCount !== null &&
+          minStopCount !== undefined &&
+          (!Number.isFinite(stopValue) || stopValue < minStopCount)
+        ) {
+          return;
+        }
+        if (sizeByStops && (!Number.isFinite(stopValue) || stopValue <= 0)) {
+          return;
+        }
+        if (xScaleType === "log" && xValue <= 0) {
+          return;
+        }
+        if (yScaleType === "log" && yValue <= 0) {
+          return;
+        }
         if (minX !== null && xValue <= minX) {
           audit.push({ agency, year, x: xValue, y: yValue });
           return;
@@ -93,7 +251,13 @@
           audit.push({ agency, year, x: xValue, y: yValue });
           return;
         }
-        points.push({ agency, year, x: xValue, y: yValue });
+        points.push({
+          agency,
+          year,
+          x: xValue,
+          y: yValue,
+          stops: Number.isFinite(stopValue) ? stopValue : undefined,
+        });
       });
     });
     if (audit.length) {
@@ -109,20 +273,14 @@
     isLoading = true;
     loadError = "";
     try {
-      const [xResponse, yResponse] = await Promise.all([
-        fetch(xMetricUrl),
-        fetch(yMetricUrl),
-      ]);
-      if (!xResponse.ok || !yResponse.ok) {
-        throw new Error("Failed to load rate data.");
-      }
-      const xPayload = await xResponse.json();
-      const yPayload = await yResponse.json();
-      const xRows = Array.isArray(xPayload?.rows) ? xPayload.rows : [];
-      const yRows = Array.isArray(yPayload?.rows) ? yPayload.rows : [];
-      const xMap = buildValueMap(xRows);
-      const yMap = buildValueMap(yRows);
-      allPoints = buildPoints(yMap, xMap);
+      const payload = await fetchMetricData(dataUrl);
+      const xMap = buildMetricValueMap(payload, xMetricKey);
+      const yMap = buildMetricValueMap(payload, yMetricKey);
+      const needsStops = sizeByStops || minStops !== null;
+      const stopsMap = needsStops
+        ? buildMetricValueMap(payload, stopsMetricKey)
+        : undefined;
+      allPoints = buildPoints(yMap, xMap, stopsMap, minStops);
     } catch (error) {
       loadError = error instanceof Error ? error.message : "Unable to load data.";
       allPoints = [];
@@ -183,6 +341,10 @@
         points={yearPoints}
         activePoint={activePoint}
         formatValue={formatValue}
+        formatStops={formatStops}
+        sizeByStops={sizeByStops}
+        xScaleType={xScaleType}
+        yScaleType={yScaleType}
         xLabel={(xLabel || m?.agency_scatter_hit_rate_label?.()) ?? "Hit rate"}
         yLabel={(yLabel || m?.agency_scatter_search_rate_label?.()) ?? "Search rate"}
       />

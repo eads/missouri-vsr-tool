@@ -1176,8 +1176,10 @@
                     }
                     xLabel={m?.agency_scatter_search_rate_label?.() ?? "Search rate"}
                     yLabel={m?.agency_scatter_hit_rate_label?.() ?? "Hit rate"}
-                    xMetricUrl="/data/metric_year/rates-by-race--rates--search-rate.json"
-                    yMetricUrl="/data/metric_year/rates-by-race--rates--contraband-hit-rate.json"
+                    xMetricKey="rates-by-race--totals--searches-rate"
+                    yMetricKey="rates-by-race--totals--contraband-rate"
+                    minStops={500}
+                    sizeByStops={true}
                     minX={0}
                     minY={0}
                     maxX={100}
@@ -1192,8 +1194,10 @@
                     }
                     xLabel={m?.agency_scatter_population_label?.() ?? "Population"}
                     yLabel={m?.agency_scatter_total_stops_label?.() ?? "Total stops"}
-                    xMetricUrl="/data/metric_year/rates-by-race--population--acs-pop.json"
-                    yMetricUrl="/data/metric_year/rates-by-race--totals--all-stops.json"
+                    xMetricKey="rates-by-race--population--acs-pop"
+                    yMetricKey="rates-by-race--totals--all-stops"
+                    xScaleType="log"
+                    yScaleType="log"
                     excludeAgencies={["Missouri State Highway Patrol"]}
                     minX={0}
                   />
