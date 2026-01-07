@@ -6,7 +6,8 @@
     "dev": "sst dev",
     "deploy": "sst deploy",
     "diff": "sst diff",
-    "remove": "sst remove"
+    "remove": "sst remove",
+    "sync:data": "bash scripts/sync-data.sh"
   },
   "devDependencies": {
     "sst": "^3.17.25"

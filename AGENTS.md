@@ -13,6 +13,8 @@
 - `row_key` = `<table_id>--<section_id>--<metric_id>`.
 - `row_id` = `<year>-<agency_slug>-<row_key>`.
 - Baselines (`statewide_slug_baselines.json`) also key by `row_key`.
+- Sync the latest dataset from S3 with `pnpm sync:data` (pull-only).
+- Data sync reads `MISSOURI_VSR_BUCKET_NAME` + `MISSOURI_VSR_S3_PREFIX` from `.env`.
 
 ## Translation keys
 
@@ -24,4 +26,3 @@ Report dimension labels use ID-based keys:
 
 These are generated from `packages/web/static/data/report_dimensions.json` and
 stored in `packages/web/messages/en.json` and `packages/web/messages/es.json`.
-
