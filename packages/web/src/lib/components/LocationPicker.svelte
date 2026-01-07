@@ -157,7 +157,7 @@
     aria-label={m.home_location_picker_label()}
     autocomplete="off"
     spellcheck="false"
-    class="w-full rounded-xl border-2 border-slate-300 bg-white px-5 py-3.5 text-base text-slate-900 shadow-sm transition-colors focus:border-indigo-500 focus:outline-none"
+    class="w-full rounded-xl border-2 border-slate-300 bg-white px-5 py-3.5 text-base text-slate-900 shadow-sm transition-colors focus:border-[#28AF57] focus:outline-none"
   />
   {#if results.length}
     <ul
@@ -170,8 +170,8 @@
           <button
             type="button"
             on:click={() => handleSelect(result.item)}
-            class={`flex w-full flex-col gap-1 px-4 py-3 text-left text-sm text-slate-900 transition-colors hover:bg-indigo-50 ${
-              index === selectedIndex ? "bg-indigo-50" : ""
+            class={`flex w-full flex-col gap-1 px-4 py-3 text-left text-sm text-slate-900 transition-colors hover:bg-green-50 ${
+              index === selectedIndex ? "bg-green-50" : ""
             }`}
           >
             <span class="font-semibold text-slate-900">{toLabel(result.item)}</span>
