@@ -26,11 +26,12 @@
   const axisXTickStyle = "fill: #64748b; font-size: 10px; font-weight: 500;";
   const axisLabelStyle = "fill: #0f172a; font-size: 10px; font-weight: 600;";
   const topLabelStyle = "fill: #0f172a; font-size: 10px; font-weight: 600;";
+  const gridLineClass = "stroke-slate-300/70";
   const baseRadius = 2.2;
   const minRadius = 0.8;
   const maxRadius = 18;
-  const dotFill = "rgba(226, 232, 240, 0.5)";
-  const dotStroke = "rgba(148, 163, 184, 0.8)";
+  const dotFill = "rgba(204, 209, 216, 0.58)";
+  const dotStroke = "rgba(126, 139, 156, 0.9)";
   const dotStrokeWidth = 0.8;
 
   const getPositiveExtent = (data: ScatterPoint[], key: "x" | "y") => {
@@ -109,7 +110,7 @@
   <Svg>
     <Axis
       placement="left"
-      grid={{ class: "stroke-slate-200/70" }}
+      grid={{ class: gridLineClass }}
       rule={{ class: "stroke-slate-400" }}
       tickLength={2}
       ticks={yTicks}
@@ -134,7 +135,7 @@
     {/if}
     <Axis
       placement="bottom"
-      grid={{ class: "stroke-slate-200/70" }}
+      grid={{ class: gridLineClass }}
       rule={{ class: "stroke-slate-400" }}
       tickLength={2}
       ticks={xTicks}
