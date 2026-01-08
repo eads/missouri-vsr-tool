@@ -186,7 +186,7 @@
         data={[activePoint]}
         x="x"
         y="y"
-        r={5.5}
+        r={sizeByStops ? undefined : 5.5}
         class="fill-emerald-500 pointer-events-none"
         stroke="#0f172a"
         strokeWidth={1}
