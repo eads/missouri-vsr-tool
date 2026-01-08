@@ -23,16 +23,23 @@
     value === null || value === undefined ? "—" : String(value);
 
   const axisTickStyle = "fill: #0f172a; font-size: 11px; font-weight: 600;";
-  const axisXTickStyle = "fill: #64748b; font-size: 10px; font-weight: 500;";
   const axisLabelStyle = "fill: #0f172a; font-size: 10px; font-weight: 600;";
   const topLabelStyle = "fill: #0f172a; font-size: 10px; font-weight: 600;";
   const gridLineClass = "stroke-slate-300/70";
+  const xTickCount = 5;
+  const yTickCount = 5;
   const baseRadius = 2.2;
   const minRadius = 0.8;
   const maxRadius = 18;
   const dotFill = "rgba(204, 209, 216, 0.58)";
   const dotStroke = "rgba(126, 139, 156, 0.9)";
   const dotStrokeWidth = 0.8;
+
+  const isMajorLogTick = (value: number) => {
+    if (!Number.isFinite(value) || value <= 0) return false;
+    const logValue = Math.log10(value);
+    return Math.abs(logValue - Math.round(logValue)) < 1e-6;
+  };
 
   const getPositiveExtent = (data: ScatterPoint[], key: "x" | "y") => {
     let min = Infinity;
@@ -71,11 +78,11 @@
       const min = xExtent?.min ?? 1;
       const max = xExtent?.max ?? min;
       const scale = scaleLog().domain([min, max]);
-      const ticks = scale.ticks(4);
+      const ticks = scale.ticks(xTickCount);
       return ticks.length ? ticks : [min];
     }
     const scale = scaleLinear().domain([0, xMax]).nice();
-    const ticks = scale.ticks(4);
+    const ticks = scale.ticks(xTickCount);
     return ticks.length ? ticks : [0];
   })();
   $: yTicks = (() => {
@@ -83,11 +90,11 @@
       const min = yExtent?.min ?? 1;
       const max = yExtent?.max ?? min;
       const scale = scaleLog().domain([min, max]);
-      const ticks = scale.ticks(4);
+      const ticks = scale.ticks(yTickCount);
       return ticks.length ? ticks : [min];
     }
     const scale = scaleLinear().domain([0, yMax]).nice();
-    const ticks = scale.ticks(4);
+    const ticks = scale.ticks(yTickCount);
     return ticks.length ? ticks : [0];
   })();
 </script>
@@ -114,7 +121,9 @@
       rule={{ class: "stroke-slate-400" }}
       tickLength={2}
       ticks={yTicks}
-      format={(value) => formatValue(value)}
+      format={(value) =>
+        yScaleType === "log" && !isMajorLogTick(value) ? "" : formatValue(value)
+      }
       tickLabelProps={{
         style: axisTickStyle,
       }}
@@ -145,8 +154,11 @@
         style: axisLabelStyle,
       }}
       tickLabelProps={{
-        style: axisXTickStyle,
+        style: axisTickStyle,
       }}
+      format={(value) =>
+        xScaleType === "log" && !isMajorLogTick(value) ? "" : formatValue(value)
+      }
     />
     <Points
       data={points}
