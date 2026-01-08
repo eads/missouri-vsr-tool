@@ -49,7 +49,7 @@
           </a>
           <span class="text-slate-300">•</span>
           <a
-            href="/data/agency_index.json"
+            href="/data/dist/agency_index.json"
             download
             class="text-sm font-medium text-slate-700 no-underline transition-colors hover:text-[#28AF57]"
           >
@@ -105,7 +105,7 @@
           {m.home_toc_learn()}
         </a>
         <a
-          href="/data/agency_index.json"
+          href="/data/dist/agency_index.json"
           download
           class="block px-4 py-2 text-sm font-medium text-slate-700 no-underline transition-colors hover:bg-slate-50 hover:text-[#28AF57]"
         >

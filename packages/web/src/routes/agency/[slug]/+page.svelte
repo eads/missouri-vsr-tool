@@ -1076,7 +1076,7 @@
         <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500">
           <a
             class="inline-flex items-center gap-1 underline"
-            href={`/data/agency_year/${data.slug}.json`}
+            href={`/data/dist/agency_year/${data.slug}.json`}
             download
           >
             <span aria-hidden="true">↓</span>
@@ -1085,7 +1085,7 @@
           </a>
           <a
             class="inline-flex items-center gap-1 underline"
-            href="/data/vsr_2020_2024_all.parquet"
+            href="/data/downloads/all_combined_output.parquet"
           >
             <span aria-hidden="true">↓</span>
             {m?.agency_download_all_data?.() ?? "Download all data"}
@@ -1106,7 +1106,7 @@
         data.slug}
       basemapPmtilesUrl="https://pmtiles.grupovisual.org/latest.pmtiles"
       basemapStyleUrl={basemapStyleUrl}
-      pmtilesUrl="/data/tiles/mo_jurisdictions_2024_500k.pmtiles"
+      pmtilesUrl="/data/dist/tiles/mo_jurisdictions_2024_500k.pmtiles"
       boundaryDataOverride={boundaryData}
     />
   </section>
