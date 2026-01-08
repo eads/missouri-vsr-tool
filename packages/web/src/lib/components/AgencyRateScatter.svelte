@@ -79,6 +79,10 @@
   export let minSearchesKey = "rates-by-race--totals--searches";
   export let minSearchesMessage = "Not enough searches to display this chart.";
   export let excludeExactValue: number | null = null;
+  export let xCountKey: string | null = null;
+  export let yCountKey: string | null = null;
+  export let xCountLabel = "";
+  export let yCountLabel = "";
   export let xScaleType: AxisScaleType = "linear";
   export let yScaleType: AxisScaleType = "linear";
   export let dataUrl = "/data/dist/metric_year_subset.json";
@@ -97,6 +101,8 @@
     x: number;
     y: number;
     stops?: number;
+    xCount?: number;
+    yCount?: number;
   }> = [];
   let yearPoints: typeof allPoints = [];
   let activePoint: (typeof allPoints)[number] | null = null;
@@ -107,6 +113,9 @@
     maximumFractionDigits: 2,
   });
   const stopsFormatter = new Intl.NumberFormat(undefined, {
+    maximumFractionDigits: 0,
+  });
+  const countFormatter = new Intl.NumberFormat(undefined, {
     maximumFractionDigits: 0,
   });
 
@@ -125,6 +134,10 @@
     value === null || value === undefined || Number.isNaN(value)
       ? "—"
       : stopsFormatter.format(value);
+  const formatCount = (value: number | null | undefined) =>
+    value === null || value === undefined || Number.isNaN(value)
+      ? "—"
+      : countFormatter.format(value);
 
   const shouldExcludeValue = (value: number) =>
     excludeExactValue !== null &&
@@ -229,7 +242,9 @@
     stopsMap?: Map<number, Map<string, number>>,
     minStopCount?: number | null,
     searchesMap?: Map<number, Map<string, number>>,
-    minSearchCount?: number | null
+    minSearchCount?: number | null,
+    xCountMap?: Map<number, Map<string, number>>,
+    yCountMap?: Map<number, Map<string, number>>
   ) => {
     const points: typeof allPoints = [];
     const excluded = new Set(excludeAgencies.map((agency) => normalize(agency)));
@@ -238,6 +253,8 @@
       const xYearMap = xMap.get(year);
       const stopsYearMap = stopsMap?.get(year);
       const searchesYearMap = searchesMap?.get(year);
+      const xCountYearMap = xCountMap?.get(year);
+      const yCountYearMap = yCountMap?.get(year);
       if (!xYearMap) return;
       yYearMap.forEach((yValue, agency) => {
         const xValue = xYearMap.get(agency);
@@ -245,6 +262,8 @@
         if (excluded.has(normalize(agency))) return;
         const stopValue = stopsYearMap?.get(agency);
         const searchValue = searchesYearMap?.get(agency);
+        const xCountValue = xCountYearMap?.get(agency);
+        const yCountValue = yCountYearMap?.get(agency);
         if (
           minStopCount !== null &&
           minStopCount !== undefined &&
@@ -293,6 +312,8 @@
           x: xValue,
           y: yValue,
           stops: Number.isFinite(stopValue) ? stopValue : undefined,
+          xCount: Number.isFinite(xCountValue) ? xCountValue : undefined,
+          yCount: Number.isFinite(yCountValue) ? yCountValue : undefined,
         });
       });
     });
@@ -316,6 +337,8 @@
       const stopsMap = needsStops
         ? buildMetricValueMap(payload, stopsMetricKey)
         : undefined;
+      const xCountMap = xCountKey ? buildMetricValueMap(payload, xCountKey) : undefined;
+      const yCountMap = yCountKey ? buildMetricValueMap(payload, yCountKey) : undefined;
       minSearchesMap =
         minSearches !== null ? buildMetricValueMap(payload, minSearchesKey) : null;
       allPoints = buildPoints(
@@ -324,7 +347,9 @@
         stopsMap,
         minStops,
         minSearchesMap ?? undefined,
-        minSearches
+        minSearches,
+        xCountMap,
+        yCountMap
       );
     } catch (error) {
       loadError = error instanceof Error ? error.message : "Unable to load data.";
@@ -401,6 +426,9 @@
         activePoint={activePoint}
         formatValue={formatValue}
         formatStops={formatStops}
+        formatCount={formatCount}
+        xCountLabel={xCountLabel}
+        yCountLabel={yCountLabel}
         sizeByStops={sizeByStops}
         xScaleType={xScaleType}
         yScaleType={yScaleType}

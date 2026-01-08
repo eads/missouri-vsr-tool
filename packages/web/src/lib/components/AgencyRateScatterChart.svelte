@@ -8,6 +8,8 @@
     x: number;
     y: number;
     stops?: number;
+    xCount?: number;
+    yCount?: number;
   };
 
   export let points: ScatterPoint[] = [];
@@ -15,8 +17,12 @@
   export let activePoint: ScatterPoint | null = null;
   export let formatValue: (value: number | null | undefined) => string = (value) =>
     value === null || value === undefined ? "—" : String(value);
+  export let formatCount: (value: number | null | undefined) => string = (value) =>
+    value === null || value === undefined ? "—" : String(value);
   export let xLabel = "";
   export let yLabel = "";
+  export let xCountLabel = "";
+  export let yCountLabel = "";
   export let sizeByStops = false;
   export let xScaleType: "linear" | "log" = "linear";
   export let yScaleType: "linear" | "log" = "linear";
@@ -202,6 +208,20 @@
             value={formatValue(data.y)}
             valueAlign="right"
           />
+          {#if Number.isFinite(data?.xCount) && xCountLabel}
+            <Tooltip.Item
+              label={xCountLabel}
+              value={formatCount(data.xCount)}
+              valueAlign="right"
+            />
+          {/if}
+          {#if Number.isFinite(data?.yCount) && yCountLabel}
+            <Tooltip.Item
+              label={yCountLabel}
+              value={formatCount(data.yCount)}
+              valueAlign="right"
+            />
+          {/if}
           {#if Number.isFinite(data?.stops)}
             <Tooltip.Item
               label="Total stops"

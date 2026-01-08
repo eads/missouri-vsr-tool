@@ -1167,26 +1167,35 @@
                   {/each}
                 </div>
                 <div class="grid gap-3 lg:grid-cols-2">
-                  <AgencyRateScatter
-                    selectedYear={selectedYear}
-                    agencyName={agencyData?.agency ?? data.slug}
-                    title={
-                      (m?.agency_scatter_search_vs_hit_heading?.() ??
-                        "Search rate vs contraband hit rate")
-                    }
-                    xLabel={m?.agency_scatter_search_rate_label?.() ?? "Search rate"}
-                    yLabel={m?.agency_scatter_hit_rate_label?.() ?? "Hit rate"}
+                  <div class="space-y-1">
+                    <AgencyRateScatter
+                      selectedYear={selectedYear}
+                      agencyName={agencyData?.agency ?? data.slug}
+                      title={
+                        (m?.agency_scatter_search_vs_hit_heading?.() ??
+                          "Search rate vs contraband hit rate")
+                      }
+                      xLabel={m?.agency_scatter_search_rate_label?.() ?? "Search rate"}
+                      yLabel={m?.agency_scatter_hit_rate_label?.() ?? "Hit rate"}
                     xMetricKey="rates-by-race--totals--searches-rate"
                     yMetricKey="rates-by-race--totals--contraband-rate"
+                    xCountKey="rates-by-race--totals--searches"
+                    yCountKey="rates-by-race--totals--contraband"
+                    xCountLabel="Searches"
+                    yCountLabel="Contraband hits"
                     minStops={500}
                     sizeByStops={true}
-                    minSearches={25}
+                    minSearches={50}
                     excludeExactValue={100}
-                    minX={0}
-                    minY={0}
-                    maxX={100}
-                    maxY={100}
-                  />
+                      minX={0}
+                      minY={0}
+                      maxX={100}
+                      maxY={100}
+                    />
+                    <p class="text-xs text-slate-500">
+                      Requires at least 50 searches to display.
+                    </p>
+                  </div>
                   <AgencyRateScatter
                     selectedYear={selectedYear}
                     agencyName={agencyData?.agency ?? data.slug}
