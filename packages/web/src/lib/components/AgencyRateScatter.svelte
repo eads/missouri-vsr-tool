@@ -1,11 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import * as m from "$lib/paraglide/messages";
-  import {
-    scatterDomainGroupStore,
-    scatterHoverGroupStore,
-    type ScatterDomainRange,
-  } from "$lib/stores/scatter";
+  import { scatterDomainGroupStore, type ScatterDomainRange } from "$lib/stores/scatter";
 
   type MetricYearSubset = {
     agencies: string[];
@@ -86,6 +82,7 @@
   export let minCountColumn: string | null = null;
   export let minCountMessage = "Not enough records to display this chart.";
   export let excludeExactValue: number | null = null;
+  export let excludeAboveX: number | null = null;
   export let xCountKey: string | null = null;
   export let yCountKey: string | null = null;
   export let xCountColumn: string | null = null;
@@ -98,7 +95,6 @@
   export let yScaleType: AxisScaleType = "linear";
   export let note = "";
   export let domainGroup: string | null = null;
-  export let hoverGroup: string | null = null;
   export let dataUrl = "/data/dist/metric_year_subset.json";
   export let xMetricKey = "rates-by-race--totals--contraband-rate";
   export let yMetricKey = "rates-by-race--totals--searches-rate";
@@ -123,10 +119,13 @@
   }> = [];
   let yearPoints: typeof allPoints = [];
   let activePoint: (typeof allPoints)[number] | null = null;
-  let hoverPoint: (typeof allPoints)[number] | null = null;
   let sharedDomainPoints: typeof allPoints | null = null;
+  let localDomain: DomainRange | null = null;
   let minCountMap: Map<number, Map<string, number>> | null = null;
   let minCountError = "";
+  let excludeAboveXCounts: Map<number, number> | null = null;
+  let excludeAboveXCount = 0;
+  let excludeAboveXNote = "";
 
   const numberFormatter = new Intl.NumberFormat(undefined, {
     maximumFractionDigits: 2,
@@ -341,7 +340,9 @@
     countMap?: Map<number, Map<string, number>>,
     minCountValue?: number | null,
     xCountMap?: Map<number, Map<string, number>>,
-    yCountMap?: Map<number, Map<string, number>>
+    yCountMap?: Map<number, Map<string, number>>,
+    excludeAboveXValue?: number | null,
+    excludeAboveXCountMap?: Map<number, number>
   ) => {
     const points: typeof allPoints = [];
     const excluded = new Set(excludeAgencies.map((agency) => normalize(agency)));
@@ -373,6 +374,20 @@
           minCountValue !== undefined &&
           (!Number.isFinite(countValue) || countValue < minCountValue)
         ) {
+          return;
+        }
+        if (
+          excludeAboveXValue !== null &&
+          excludeAboveXValue !== undefined &&
+          Number.isFinite(xValue) &&
+          xValue > excludeAboveXValue
+        ) {
+          if (excludeAboveXCountMap) {
+            excludeAboveXCountMap.set(
+              year,
+              (excludeAboveXCountMap.get(year) ?? 0) + 1
+            );
+          }
           return;
         }
         if (shouldExcludeValue(xValue) || shouldExcludeValue(yValue)) {
@@ -459,6 +474,7 @@
         minCount !== null
           ? buildMetricValueMap(payload, minCountKey, minCountColumn ?? "Total")
           : null;
+      excludeAboveXCounts = excludeAboveX !== null ? new Map() : null;
       allPoints = buildPoints(
         yMap,
         xMap,
@@ -467,12 +483,15 @@
         minCountMap ?? undefined,
         minCount,
         xCountMap,
-        yCountMap
+        yCountMap,
+        excludeAboveX,
+        excludeAboveXCounts ?? undefined
       );
     } catch (error) {
       loadError = error instanceof Error ? error.message : "Unable to load data.";
       allPoints = [];
       minCountMap = null;
+      excludeAboveXCounts = null;
     } finally {
       isLoading = false;
     }
@@ -489,24 +508,10 @@
     loadData();
   });
 
-  const updateHoverGroup = (groupKey: string | null, pointAgency: string | null) => {
-    if (!groupKey) return;
-    scatterHoverGroupStore.update((map) => {
-      const current = map.get(groupKey) ?? null;
-      if (current === pointAgency) return map;
-      map.set(groupKey, pointAgency);
-      return map;
-    });
-  };
-
-  $: hoverGroupKey = hoverGroup ? `${hoverGroup}` : null;
   $: domainGroupKey =
     domainGroup && Number.isFinite(Number(selectedYear))
       ? `${domainGroup}-${Number(selectedYear)}`
       : null;
-  const handleHover = (point: (typeof allPoints)[number] | null) => {
-    updateHoverGroup(hoverGroupKey, point?.agency ?? null);
-  };
   $: {
     const year = Number(selectedYear);
     minCountError = "";
@@ -522,55 +527,59 @@
     if (!Number.isFinite(year) || !allPoints.length) {
       yearPoints = [];
       activePoint = null;
+      excludeAboveXCount = 0;
     } else {
       yearPoints = allPoints.filter((point) => point.year === year);
       const normalizedAgency = normalize(agencyName || "");
       activePoint =
         yearPoints.find((point) => normalize(point.agency) === normalizedAgency) ||
         null;
+      excludeAboveXCount = excludeAboveXCounts?.get(year) ?? 0;
     }
-    const localDomain = buildDomainFromPoints(yearPoints);
-    if (domainGroupKey && localDomain) {
-      const currentMap = $scatterDomainGroupStore;
-      const existing = currentMap.get(domainGroupKey);
-      const merged = existing
-        ? {
-            xMin: Math.min(existing.xMin, localDomain.xMin),
-            xMax: Math.max(existing.xMax, localDomain.xMax),
-            yMin: Math.min(existing.yMin, localDomain.yMin),
-            yMax: Math.max(existing.yMax, localDomain.yMax),
-          }
-        : localDomain;
-      if (
-        !existing ||
-        existing.xMin !== merged.xMin ||
-        existing.xMax !== merged.xMax ||
-        existing.yMin !== merged.yMin ||
-        existing.yMax !== merged.yMax
-      ) {
-        scatterDomainGroupStore.update((map) => {
-          map.set(domainGroupKey, merged);
-          return map;
-        });
-      }
-      sharedDomainPoints = buildDomainPoints(merged, year);
-    } else {
-      sharedDomainPoints = null;
-    }
-    if (hoverGroupKey) {
-      const hoveredAgency = $scatterHoverGroupStore.get(hoverGroupKey) ?? null;
-      if (hoveredAgency) {
-        const normalizedHover = normalize(hoveredAgency);
-        hoverPoint =
-          yearPoints.find((point) => normalize(point.agency) === normalizedHover) ||
-          null;
-      } else {
-        hoverPoint = null;
-      }
-    } else {
-      hoverPoint = null;
+    localDomain = buildDomainFromPoints(yearPoints);
+  }
+
+  $: if (domainGroupKey && localDomain) {
+    const currentMap = $scatterDomainGroupStore;
+    const existing = currentMap.get(domainGroupKey);
+    const merged = existing
+      ? {
+          xMin: Math.min(existing.xMin, localDomain.xMin),
+          xMax: Math.max(existing.xMax, localDomain.xMax),
+          yMin: Math.min(existing.yMin, localDomain.yMin),
+          yMax: Math.max(existing.yMax, localDomain.yMax),
+        }
+      : localDomain;
+    if (
+      !existing ||
+      existing.xMin !== merged.xMin ||
+      existing.xMax !== merged.xMax ||
+      existing.yMin !== merged.yMin ||
+      existing.yMax !== merged.yMax
+    ) {
+      scatterDomainGroupStore.update((map) => {
+        map.set(domainGroupKey, merged);
+        return map;
+      });
     }
   }
+
+  $: if (domainGroupKey) {
+    const domain = $scatterDomainGroupStore.get(domainGroupKey) ?? localDomain;
+    const year = Number(selectedYear);
+    sharedDomainPoints =
+      domain && Number.isFinite(year) ? buildDomainPoints(domain, year) : null;
+  } else {
+    sharedDomainPoints = null;
+  }
+
+  $: excludeAboveXNote =
+    excludeAboveX !== null && excludeAboveXCount > 0
+      ? (m?.agency_scatter_search_rate_outlier_note?.({
+          count: formatCount(excludeAboveXCount),
+        }) ??
+        `Removes ${formatCount(excludeAboveXCount)} depts with search rates over 50% while we investigate.`)
+      : "";
 
 </script>
 
@@ -601,7 +610,6 @@
           points={yearPoints}
           domainPoints={sharedDomainPoints ?? undefined}
           activePoint={activePoint}
-          hoverPoint={hoverPoint}
           formatValue={formatValue}
           formatStops={formatStops}
           formatCount={formatCount}
@@ -612,7 +620,6 @@
           sizeByStops={sizeByStops}
           xScaleType={xScaleType}
           yScaleType={yScaleType}
-          onHover={hoverGroupKey ? handleHover : undefined}
           xLabel={(xLabel || m?.agency_scatter_hit_rate_label?.()) ?? "Hit rate"}
           yLabel={(yLabel || m?.agency_scatter_search_rate_label?.()) ?? "Search rate"}
         />
@@ -622,7 +629,14 @@
       {m?.agency_scatter_chart_loading?.() ?? "Loading chart…"}
     </div>
   {/if}
-  {#if note}
-    <div class="mt-1 text-xs text-slate-500">{note}</div>
+  {#if note || excludeAboveXNote}
+    <div class="mt-1 space-y-0.5 text-xs text-slate-500">
+      {#if note}
+        <div>{note}</div>
+      {/if}
+      {#if excludeAboveXNote}
+        <div>{excludeAboveXNote}</div>
+      {/if}
+    </div>
   {/if}
 </div>

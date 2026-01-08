@@ -279,5 +279,6 @@
   "agency_scatter_min_searches_note": "Requires at least 50 searches to display.",
   "agency_scatter_min_searches_note_small": "Requires at least 25 searches to display.",
   "agency_scatter_min_citations_note": "Requires at least 50 citations to display.",
-  "agency_scatter_min_citations_note_small": "Requires at least 25 citations to display."
+  "agency_scatter_min_citations_note_small": "Requires at least 25 citations to display.",
+  "agency_scatter_search_rate_outlier_note": "Removes {count} depts with search rates over 50% while we investigate."
 }

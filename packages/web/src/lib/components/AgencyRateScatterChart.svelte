@@ -8,7 +8,6 @@
     Tooltip,
     Highlight,
     Text,
-    getChartContext,
   } from "layerchart";
   import { scaleLinear, scaleLog } from "d3-scale";
 
@@ -25,8 +24,6 @@
   export let points: ScatterPoint[] = [];
   export let domainPoints: ScatterPoint[] | null = null;
   export let activePoint: ScatterPoint | null = null;
-  export let hoverPoint: ScatterPoint | null = null;
-  export let onHover: ((point: ScatterPoint | null) => void) | null = null;
   export let formatValue: (value: number | null | undefined) => string = (value) =>
     value === null || value === undefined ? "—" : String(value);
   export let formatCount: (value: number | null | undefined) => string = (value) =>
@@ -58,13 +55,9 @@
   const dotStrokeWidth = 0.8;
   const scaledBaseRadius = baseRadius * dotRadiusScale;
   const activePointRadius = 5.5 * dotRadiusScale;
-  const hoverPointRadius = 4 * dotRadiusScale;
   const topPadding = 22;
   const yLabelOffset = -12;
   const logMinorFactors = [2, 3, 4, 5, 6, 7, 8, 9];
-  let lastHoverAgency: string | null = null;
-  let lastMirroredAgency: string | null = null;
-  const chartContext = getChartContext<ScatterPoint>();
 
   const isMajorLogTick = (value: number) => {
     if (!Number.isFinite(value) || value <= 0) return false;
@@ -108,45 +101,6 @@
     return { min, max };
   };
 
-  const updateHover = (point: ScatterPoint | null) => {
-    if (!onHover) return;
-    const nextAgency = point?.agency ?? null;
-    if (nextAgency === lastHoverAgency) return;
-    lastHoverAgency = nextAgency;
-    onHover(point);
-  };
-
-  const syncMirroredTooltip = (point: ScatterPoint | null) => {
-    if (!chartContext?.tooltip || !chartContext?.containerRef) return;
-    if (chartContext.tooltip.isHoveringTooltipArea) {
-      lastMirroredAgency = null;
-      return;
-    }
-    if (!point) {
-      if (lastMirroredAgency !== null) {
-        chartContext.tooltip.hide();
-        lastMirroredAgency = null;
-      }
-      return;
-    }
-    if (point.agency === lastMirroredAgency) return;
-    const xValue = chartContext.xGet(point);
-    const yValue = chartContext.yGet(point);
-    if (!Number.isFinite(xValue) || !Number.isFinite(yValue)) return;
-    const rect = chartContext.containerRef.getBoundingClientRect();
-    const clientX = rect.left + chartContext.padding.left + xValue;
-    const clientY = rect.top + chartContext.padding.top + yValue;
-    const event = new PointerEvent("pointermove", {
-      clientX,
-      clientY,
-      bubbles: true,
-    });
-    chartContext.containerRef.dispatchEvent(event);
-    chartContext.tooltip.show(event, point);
-    lastMirroredAgency = point.agency;
-  };
-
-  $: syncMirroredTooltip(hoverPoint);
 
   $: domainSource =
     domainPoints && Array.isArray(domainPoints) && domainPoints.length
@@ -278,18 +232,6 @@
       stroke={dotStroke}
       strokeWidth={dotStrokeWidth}
     />
-    {#if hoverPoint}
-      <Points
-        data={[hoverPoint]}
-        x="x"
-        y="y"
-        r={sizeByStops ? undefined : hoverPointRadius}
-        class="pointer-events-none"
-        fill="rgba(100, 116, 139, 0.35)"
-        stroke="rgba(71, 85, 105, 0.85)"
-        strokeWidth={1}
-      />
-    {/if}
     {#if activePoint}
       <Points
         data={[activePoint]}
@@ -305,7 +247,6 @@
   </Svg>
   <Tooltip.Root>
     {#snippet children({ data })}
-      {@const _ = updateHover(data ?? null)}
       {#if data}
         <Tooltip.Header>{data.agency}</Tooltip.Header>
         <Tooltip.List>

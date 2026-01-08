@@ -8,4 +8,3 @@ export type ScatterDomainRange = {
 };
 
 export const scatterDomainGroupStore = writable(new Map<string, ScatterDomainRange>());
-export const scatterHoverGroupStore = writable(new Map<string, string | null>());

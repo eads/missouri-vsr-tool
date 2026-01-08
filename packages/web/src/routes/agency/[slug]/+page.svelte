@@ -1176,7 +1176,6 @@
                           "Population vs total stops")
                       }
                       domainGroup="population-stops"
-                      hoverGroup="population-stops"
                       xLabel={m?.agency_scatter_population_label?.() ?? "Population"}
                       yLabel={m?.agency_scatter_total_stops_label?.() ?? "Total stops"}
                       dotRadiusScale={1.1}
@@ -1195,7 +1194,6 @@
                           "Population vs non-white total stops")
                       }
                       domainGroup="population-stops"
-                      hoverGroup="population-stops"
                       xLabel={m?.agency_scatter_population_label?.() ?? "Population"}
                       yLabel={
                         m?.agency_scatter_total_stops_nonwhite_label?.() ??
@@ -1217,7 +1215,6 @@
                           "Population vs white total stops")
                       }
                       domainGroup="population-stops"
-                      hoverGroup="population-stops"
                       xLabel={m?.agency_scatter_population_label?.() ?? "Population"}
                       yLabel={
                         m?.agency_scatter_total_stops_white_label?.() ??
@@ -1242,7 +1239,6 @@
                           "Citation rate vs arrest rate")
                       }
                       domainGroup="citation-arrest"
-                      hoverGroup="citation-arrest"
                       xLabel={m?.agency_scatter_citation_rate_label?.() ?? "Citation rate"}
                       yLabel={m?.agency_scatter_arrest_rate_label?.() ?? "Arrest rate"}
                         xMetricKey="rates-by-race--totals--citations-rate"
@@ -1280,7 +1276,6 @@
                           "Non-white citation rate vs arrest rate")
                       }
                       domainGroup="citation-arrest"
-                      hoverGroup="citation-arrest"
                       xLabel={
                         m?.agency_scatter_citation_rate_nonwhite_label?.() ??
                           "Non-white citation rate"
@@ -1339,7 +1334,6 @@
                           "White citation rate vs arrest rate")
                       }
                       domainGroup="citation-arrest"
-                      hoverGroup="citation-arrest"
                       xLabel={
                         m?.agency_scatter_citation_rate_white_label?.() ??
                           "White citation rate"
@@ -1398,7 +1392,6 @@
                           "Search rate vs contraband hit rate")
                       }
                       domainGroup="search-contraband"
-                      hoverGroup="search-contraband"
                       xLabel={m?.agency_scatter_search_rate_label?.() ?? "Search rate"}
                       yLabel={m?.agency_scatter_hit_rate_label?.() ?? "Hit rate"}
                         xMetricKey="rates-by-race--totals--searches-rate"
@@ -1423,7 +1416,7 @@
                           m?.agency_scatter_min_searches_note?.() ??
                             "Requires at least 50 searches to display."
                         }
-                        excludeExactValue={100}
+                        excludeAboveX={50}
                         minX={0}
                         minY={0}
                         maxX={100}
@@ -1439,7 +1432,6 @@
                           "Non-white search rate vs contraband hit rate")
                       }
                       domainGroup="search-contraband"
-                      hoverGroup="search-contraband"
                       xLabel={
                         m?.agency_scatter_search_rate_nonwhite_label?.() ??
                           "Non-white search rate"
@@ -1482,7 +1474,7 @@
                           m?.agency_scatter_min_searches_note_small?.() ??
                             "Requires at least 25 searches to display."
                         }
-                        excludeExactValue={100}
+                        excludeAboveX={50}
                         minX={0}
                         minY={0}
                         maxX={100}
@@ -1498,7 +1490,6 @@
                           "White search rate vs contraband hit rate")
                       }
                       domainGroup="search-contraband"
-                      hoverGroup="search-contraband"
                       xLabel={
                         m?.agency_scatter_search_rate_white_label?.() ??
                           "White search rate"
@@ -1539,7 +1530,7 @@
                           m?.agency_scatter_min_searches_note_small?.() ??
                             "Requires at least 25 searches to display."
                         }
-                        excludeExactValue={100}
+                        excludeAboveX={50}
                         minX={0}
                         minY={0}
                         maxX={100}
