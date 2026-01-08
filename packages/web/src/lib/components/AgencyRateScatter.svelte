@@ -77,7 +77,7 @@
   export let sizeByStops = false;
   export let xScaleType: AxisScaleType = "linear";
   export let yScaleType: AxisScaleType = "linear";
-  export let dataUrl = "/data/metric_year_subset.json";
+  export let dataUrl = "/data/dist/metric_year_subset.json";
   export let xMetricKey = "rates-by-race--totals--contraband-rate";
   export let yMetricKey = "rates-by-race--totals--searches-rate";
   export let stopsMetricKey = "rates-by-race--totals--all-stops";
