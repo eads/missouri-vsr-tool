@@ -25,12 +25,12 @@
   const axisTickStyle = "fill: #0f172a; font-size: 11px; font-weight: 600;";
   const axisXTickStyle = "fill: #64748b; font-size: 10px; font-weight: 500;";
   const axisLabelStyle = "fill: #0f172a; font-size: 10px; font-weight: 600;";
-  const baseRadius = 2.8;
-  const minRadius = 4;
-  const maxRadius = 30;
-  const dotFill = "rgba(226, 232, 240, 0.28)";
-  const dotStroke = "rgba(148, 163, 184, 0.55)";
-  const dotStrokeWidth = 0.75;
+  const baseRadius = 2.2;
+  const minRadius = 0.8;
+  const maxRadius = 18;
+  const dotFill = "rgba(226, 232, 240, 0.5)";
+  const dotStroke = "rgba(148, 163, 184, 0.8)";
+  const dotStrokeWidth = 0.8;
 
   const getPositiveExtent = (data: ScatterPoint[], key: "x" | "y") => {
     let min = Infinity;
