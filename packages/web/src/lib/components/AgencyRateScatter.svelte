@@ -339,6 +339,7 @@
       <svelte:component
         this={ChartComponent}
         points={yearPoints}
+        domainPoints={allPoints}
         activePoint={activePoint}
         formatValue={formatValue}
         formatStops={formatStops}

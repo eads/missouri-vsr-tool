@@ -11,6 +11,7 @@
   };
 
   export let points: ScatterPoint[] = [];
+  export let domainPoints: ScatterPoint[] | null = null;
   export let activePoint: ScatterPoint | null = null;
   export let formatValue: (value: number | null | undefined) => string = (value) =>
     value === null || value === undefined ? "—" : String(value);
@@ -54,22 +55,26 @@
     return { min, max };
   };
 
-  $: xExtent = getPositiveExtent(points, "x");
-  $: yExtent = getPositiveExtent(points, "y");
+  $: domainSource =
+    domainPoints && Array.isArray(domainPoints) && domainPoints.length
+      ? domainPoints
+      : points;
+  $: xExtent = getPositiveExtent(domainSource, "x");
+  $: yExtent = getPositiveExtent(domainSource, "y");
   $: resolvedXDomain =
     xScaleType === "log"
       ? [xExtent?.min ?? 1, xExtent?.max ?? 1]
-      : [0, null];
+      : [0, xMax || 0];
   $: resolvedYDomain =
     yScaleType === "log"
       ? [yExtent?.min ?? 1, yExtent?.max ?? 1]
-      : [0, null];
+      : [0, yMax || 0];
 
-  $: xMax = points.reduce(
+  $: xMax = domainSource.reduce(
     (max, point) => (Number.isFinite(point.x) && point.x > max ? point.x : max),
     0
   );
-  $: yMax = points.reduce(
+  $: yMax = domainSource.reduce(
     (max, point) => (Number.isFinite(point.y) && point.y > max ? point.y : max),
     0
   );
