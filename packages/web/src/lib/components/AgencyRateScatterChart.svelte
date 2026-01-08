@@ -25,6 +25,7 @@
   const axisTickStyle = "fill: #0f172a; font-size: 11px; font-weight: 600;";
   const axisXTickStyle = "fill: #64748b; font-size: 10px; font-weight: 500;";
   const axisLabelStyle = "fill: #0f172a; font-size: 10px; font-weight: 600;";
+  const topLabelStyle = "fill: #0f172a; font-size: 10px; font-weight: 600;";
   const baseRadius = 2.2;
   const minRadius = 0.8;
   const maxRadius = 18;
@@ -101,17 +102,20 @@
         style: axisTickStyle,
       }}
     >
-      {#snippet tickLabel({ props, index })}
-        <Text
-          {...props}
-          value={
-            index === yTicks.length - 1 && yLabel
-              ? `${props.value} ${yLabel}`
-              : props.value
-          }
-        />
+      {#snippet tickLabel({ props })}
+        <Text {...props} value={props.value} />
       {/snippet}
     </Axis>
+    {#if yLabel}
+      <Text
+        x={6}
+        y={0}
+        value={yLabel}
+        textAnchor="start"
+        verticalAnchor="start"
+        style={topLabelStyle}
+      />
+    {/if}
     <Axis
       placement="bottom"
       rule={{ class: "stroke-slate-400" }}
