@@ -1180,6 +1180,8 @@
                     yMetricKey="rates-by-race--totals--contraband-rate"
                     minStops={500}
                     sizeByStops={true}
+                    minSearches={25}
+                    excludeExactValue={100}
                     minX={0}
                     minY={0}
                     maxX={100}
