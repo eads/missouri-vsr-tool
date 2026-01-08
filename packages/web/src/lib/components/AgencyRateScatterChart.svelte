@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Chart, Svg, Axis, Points, Tooltip, Highlight, Text } from "layerchart";
+  import { Chart, Svg, Axis, Points, Rule, Tooltip, Highlight, Text } from "layerchart";
   import { scaleLinear, scaleLog } from "d3-scale";
 
   type ScatterPoint = {
@@ -15,6 +15,8 @@
   export let points: ScatterPoint[] = [];
   export let domainPoints: ScatterPoint[] | null = null;
   export let activePoint: ScatterPoint | null = null;
+  export let hoverPoint: ScatterPoint | null = null;
+  export let onHover: ((point: ScatterPoint | null) => void) | null = null;
   export let formatValue: (value: number | null | undefined) => string = (value) =>
     value === null || value === undefined ? "—" : String(value);
   export let formatCount: (value: number | null | undefined) => string = (value) =>
@@ -25,6 +27,7 @@
   export let yCountLabel = "";
   export let stopsLabel = "Total stops";
   export let sizeByStops = false;
+  export let dotRadiusScale = 1;
   export let xScaleType: "linear" | "log" = "linear";
   export let yScaleType: "linear" | "log" = "linear";
   export let formatStops: (value: number | null | undefined) => string = (value) =>
@@ -33,7 +36,8 @@
   const axisTickStyle = "fill: #0f172a; font-size: 11px; font-weight: 600;";
   const axisLabelStyle = "fill: #0f172a; font-size: 10px; font-weight: 600;";
   const topLabelStyle = "fill: #0f172a; font-size: 10px; font-weight: 600;";
-  const gridLineClass = "stroke-slate-300/70";
+  const gridLineMajorClass = "stroke-slate-300/80";
+  const gridLineMinorClass = "stroke-slate-200/35";
   const xTickCount = 5;
   const yTickCount = 5;
   const baseRadius = 2.2;
@@ -42,11 +46,41 @@
   const dotFill = "rgba(204, 209, 216, 0.58)";
   const dotStroke = "rgba(126, 139, 156, 0.9)";
   const dotStrokeWidth = 0.8;
+  const scaledBaseRadius = baseRadius * dotRadiusScale;
+  const activePointRadius = 5.5 * dotRadiusScale;
+  const hoverPointRadius = 4 * dotRadiusScale;
+  const topPadding = 22;
+  const yLabelOffset = -12;
+  const logMinorFactors = [2, 3, 4, 5, 6, 7, 8, 9];
+  let lastHoverAgency: string | null = null;
 
   const isMajorLogTick = (value: number) => {
     if (!Number.isFinite(value) || value <= 0) return false;
     const logValue = Math.log10(value);
     return Math.abs(logValue - Math.round(logValue)) < 1e-6;
+  };
+
+  const getLogTickSets = (extent: { min: number; max: number }) => {
+    const major: number[] = [];
+    const minor: number[] = [];
+    const minExp = Math.floor(Math.log10(extent.min));
+    const maxExp = Math.ceil(Math.log10(extent.max));
+    for (let exp = minExp; exp <= maxExp; exp += 1) {
+      const base = Math.pow(10, exp);
+      if (base >= extent.min && base <= extent.max) {
+        major.push(base);
+      }
+      logMinorFactors.forEach((factor) => {
+        const value = base * factor;
+        if (value >= extent.min && value <= extent.max) {
+          minor.push(value);
+        }
+      });
+    }
+    return {
+      major,
+      minor,
+    };
   };
 
   const getPositiveExtent = (data: ScatterPoint[], key: "x" | "y") => {
@@ -62,21 +96,18 @@
     return { min, max };
   };
 
+  const updateHover = (point: ScatterPoint | null) => {
+    if (!onHover) return;
+    const nextAgency = point?.agency ?? null;
+    if (nextAgency === lastHoverAgency) return;
+    lastHoverAgency = nextAgency;
+    onHover(point);
+  };
+
   $: domainSource =
     domainPoints && Array.isArray(domainPoints) && domainPoints.length
       ? domainPoints
       : points;
-  $: xExtent = getPositiveExtent(domainSource, "x");
-  $: yExtent = getPositiveExtent(domainSource, "y");
-  $: resolvedXDomain =
-    xScaleType === "log"
-      ? [xExtent?.min ?? 1, xExtent?.max ?? 1]
-      : [0, xMax || 0];
-  $: resolvedYDomain =
-    yScaleType === "log"
-      ? [yExtent?.min ?? 1, yExtent?.max ?? 1]
-      : [0, yMax || 0];
-
   $: xMax = domainSource.reduce(
     (max, point) => (Number.isFinite(point.x) && point.x > max ? point.x : max),
     0
@@ -85,13 +116,23 @@
     (max, point) => (Number.isFinite(point.y) && point.y > max ? point.y : max),
     0
   );
+  $: xExtent = getPositiveExtent(domainSource, "x");
+  $: yExtent = getPositiveExtent(domainSource, "y");
+  $: xLogTicks =
+    xScaleType === "log" && xExtent ? getLogTickSets(xExtent) : null;
+  $: yLogTicks =
+    yScaleType === "log" && yExtent ? getLogTickSets(yExtent) : null;
+  $: resolvedXDomain =
+    xScaleType === "log"
+      ? [xExtent?.min ?? 1, xExtent?.max ?? 1]
+      : [0, xMax || 0];
+  $: resolvedYDomain =
+    yScaleType === "log"
+      ? [yExtent?.min ?? 1, yExtent?.max ?? 1]
+      : [0, yMax || 0];
   $: xTicks = (() => {
     if (xScaleType === "log") {
-      const min = xExtent?.min ?? 1;
-      const max = xExtent?.max ?? min;
-      const scale = scaleLog().domain([min, max]);
-      const ticks = scale.ticks(xTickCount);
-      return ticks.length ? ticks : [min];
+      return xLogTicks?.major ?? [];
     }
     const scale = scaleLinear().domain([0, xMax]).nice();
     const ticks = scale.ticks(xTickCount);
@@ -99,11 +140,7 @@
   })();
   $: yTicks = (() => {
     if (yScaleType === "log") {
-      const min = yExtent?.min ?? 1;
-      const max = yExtent?.max ?? min;
-      const scale = scaleLog().domain([min, max]);
-      const ticks = scale.ticks(yTickCount);
-      return ticks.length ? ticks : [min];
+      return yLogTicks?.major ?? [];
     }
     const scale = scaleLinear().domain([0, yMax]).nice();
     const ticks = scale.ticks(yTickCount);
@@ -123,13 +160,29 @@
   xDomain={resolvedXDomain}
   yDomain={resolvedYDomain}
   yNice={yScaleType === "linear"}
-  padding={{ left: 28, right: 10, bottom: 28, top: 6 }}
+  padding={{ left: 28, right: 10, bottom: 28, top: topPadding }}
   tooltip={{ mode: "quadtree" }}
 >
   <Svg>
+    {#if xScaleType === "log" && xLogTicks}
+      {#each xLogTicks.minor as tick (tick)}
+        <Rule x={tick} class={gridLineMinorClass} />
+      {/each}
+      {#each xLogTicks.major as tick (tick)}
+        <Rule x={tick} class={gridLineMajorClass} />
+      {/each}
+    {/if}
+    {#if yScaleType === "log" && yLogTicks}
+      {#each yLogTicks.minor as tick (tick)}
+        <Rule y={tick} class={gridLineMinorClass} />
+      {/each}
+      {#each yLogTicks.major as tick (tick)}
+        <Rule y={tick} class={gridLineMajorClass} />
+      {/each}
+    {/if}
     <Axis
       placement="left"
-      grid={{ class: gridLineClass }}
+      grid={yScaleType === "log" ? false : { class: gridLineMajorClass }}
       rule={{ class: "stroke-slate-400" }}
       tickLength={2}
       ticks={yTicks}
@@ -147,7 +200,7 @@
     {#if yLabel}
       <Text
         x={6}
-        y={0}
+        y={yLabelOffset}
         value={yLabel}
         textAnchor="start"
         verticalAnchor="start"
@@ -156,7 +209,7 @@
     {/if}
     <Axis
       placement="bottom"
-      grid={{ class: gridLineClass }}
+      grid={xScaleType === "log" ? false : { class: gridLineMajorClass }}
       rule={{ class: "stroke-slate-400" }}
       tickLength={2}
       ticks={xTicks}
@@ -176,17 +229,29 @@
       data={points}
       x="x"
       y="y"
-      r={baseRadius}
+      r={scaledBaseRadius}
       fill={dotFill}
       stroke={dotStroke}
       strokeWidth={dotStrokeWidth}
     />
+    {#if hoverPoint}
+      <Points
+        data={[hoverPoint]}
+        x="x"
+        y="y"
+        r={sizeByStops ? undefined : hoverPointRadius}
+        class="pointer-events-none"
+        fill="rgba(100, 116, 139, 0.35)"
+        stroke="rgba(71, 85, 105, 0.85)"
+        strokeWidth={1}
+      />
+    {/if}
     {#if activePoint}
       <Points
         data={[activePoint]}
         x="x"
         y="y"
-        r={sizeByStops ? undefined : 5.5}
+        r={sizeByStops ? undefined : activePointRadius}
         class="fill-emerald-500 pointer-events-none"
         stroke="#0f172a"
         strokeWidth={1}
@@ -196,6 +261,7 @@
   </Svg>
   <Tooltip.Root>
     {#snippet children({ data })}
+      {@const _ = updateHover(data ?? null)}
       {#if data}
         <Tooltip.Header>{data.agency}</Tooltip.Header>
         <Tooltip.List>

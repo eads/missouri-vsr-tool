@@ -277,5 +277,7 @@
   "agency_scatter_citations_white_label": "White citations",
   "agency_scatter_arrests_white_label": "White arrests",
   "agency_scatter_min_searches_note": "Requires at least 50 searches to display.",
-  "agency_scatter_min_citations_note": "Requires at least 50 citations to display."
+  "agency_scatter_min_searches_note_small": "Requires at least 25 searches to display.",
+  "agency_scatter_min_citations_note": "Requires at least 50 citations to display.",
+  "agency_scatter_min_citations_note_small": "Requires at least 25 citations to display."
 }

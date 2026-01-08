@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { writable } from "svelte/store";
   import * as m from "$lib/paraglide/messages";
 
   type MetricYearSubset = {
@@ -10,6 +11,12 @@
   };
 
   type AxisScaleType = "linear" | "log";
+  type DomainRange = {
+    xMin: number;
+    xMax: number;
+    yMin: number;
+    yMax: number;
+  };
 
   const RATE_MULTIPLIER = 100;
   const RATE_METRIC_MAP: Record<string, string> = {
@@ -23,6 +30,8 @@
     "contraband-rate": "contraband",
   };
   const metricDataCache = new Map<string, Promise<MetricYearSubset>>();
+  const domainGroupStore = writable(new Map<string, DomainRange>());
+  const hoverGroupStore = writable(new Map<string, string | null>());
 
   const normalizePayload = (payload: unknown): MetricYearSubset => {
     if (!payload || typeof payload !== "object") {
@@ -87,8 +96,12 @@
   export let xCountLabel = "";
   export let yCountLabel = "";
   export let stopsLabel = "Total stops";
+  export let dotRadiusScale = 1;
   export let xScaleType: AxisScaleType = "linear";
   export let yScaleType: AxisScaleType = "linear";
+  export let note = "";
+  export let domainGroup: string | null = null;
+  export let hoverGroup: string | null = null;
   export let dataUrl = "/data/dist/metric_year_subset.json";
   export let xMetricKey = "rates-by-race--totals--contraband-rate";
   export let yMetricKey = "rates-by-race--totals--searches-rate";
@@ -113,6 +126,8 @@
   }> = [];
   let yearPoints: typeof allPoints = [];
   let activePoint: (typeof allPoints)[number] | null = null;
+  let hoverPoint: (typeof allPoints)[number] | null = null;
+  let sharedDomainPoints: typeof allPoints | null = null;
   let minCountMap: Map<number, Map<string, number>> | null = null;
   let minCountError = "";
 
@@ -145,6 +160,55 @@
     value === null || value === undefined || Number.isNaN(value)
       ? "—"
       : countFormatter.format(value);
+
+  const buildDomainFromPoints = (points: typeof allPoints) => {
+    if (!points.length) return null;
+    let xMin = Infinity;
+    let xMax = -Infinity;
+    let yMin = Infinity;
+    let yMax = -Infinity;
+    points.forEach((point) => {
+      if (Number.isFinite(point.x)) {
+        xMin = Math.min(xMin, point.x);
+        xMax = Math.max(xMax, point.x);
+      }
+      if (Number.isFinite(point.y)) {
+        yMin = Math.min(yMin, point.y);
+        yMax = Math.max(yMax, point.y);
+      }
+    });
+    if (!Number.isFinite(xMax) || !Number.isFinite(yMax)) return null;
+    const resolvedXMin =
+      xScaleType === "log"
+        ? Number.isFinite(xMin) && xMin > 0
+          ? xMin
+          : 1
+        : 0;
+    const resolvedYMin =
+      yScaleType === "log"
+        ? Number.isFinite(yMin) && yMin > 0
+          ? yMin
+          : 1
+        : 0;
+    const resolvedXMax =
+      xScaleType === "log"
+        ? Number.isFinite(xMax) && xMax > 0
+          ? xMax
+          : 1
+        : xMax;
+    const resolvedYMax =
+      yScaleType === "log"
+        ? Number.isFinite(yMax) && yMax > 0
+          ? yMax
+          : 1
+        : yMax;
+    return {
+      xMin: resolvedXMin,
+      xMax: resolvedXMax,
+      yMin: resolvedYMin,
+      yMax: resolvedYMax,
+    };
+  };
 
   const shouldExcludeValue = (value: number) =>
     excludeExactValue !== null &&
@@ -362,6 +426,21 @@
     return points;
   };
 
+  const buildDomainPoints = (domain: DomainRange, year: number) => [
+    {
+      agency: "",
+      year,
+      x: domain.xMin,
+      y: domain.yMin,
+    },
+    {
+      agency: "",
+      year,
+      x: domain.xMax,
+      y: domain.yMax,
+    },
+  ];
+
   const loadData = async () => {
     isLoading = true;
     loadError = "";
@@ -413,6 +492,24 @@
     loadData();
   });
 
+  const updateHoverGroup = (groupKey: string | null, pointAgency: string | null) => {
+    if (!groupKey) return;
+    hoverGroupStore.update((map) => {
+      const current = map.get(groupKey) ?? null;
+      if (current === pointAgency) return map;
+      map.set(groupKey, pointAgency);
+      return map;
+    });
+  };
+
+  $: hoverGroupKey = hoverGroup ? `${hoverGroup}` : null;
+  $: domainGroupKey =
+    domainGroup && Number.isFinite(Number(selectedYear))
+      ? `${domainGroup}-${Number(selectedYear)}`
+      : null;
+  const handleHover = (point: (typeof allPoints)[number] | null) => {
+    updateHoverGroup(hoverGroupKey, point?.agency ?? null);
+  };
   $: {
     const year = Number(selectedYear);
     minCountError = "";
@@ -435,14 +532,55 @@
         yearPoints.find((point) => normalize(point.agency) === normalizedAgency) ||
         null;
     }
+    const localDomain = buildDomainFromPoints(yearPoints);
+    if (domainGroupKey && localDomain) {
+      const currentMap = $domainGroupStore;
+      const existing = currentMap.get(domainGroupKey);
+      const merged = existing
+        ? {
+            xMin: Math.min(existing.xMin, localDomain.xMin),
+            xMax: Math.max(existing.xMax, localDomain.xMax),
+            yMin: Math.min(existing.yMin, localDomain.yMin),
+            yMax: Math.max(existing.yMax, localDomain.yMax),
+          }
+        : localDomain;
+      if (
+        !existing ||
+        existing.xMin !== merged.xMin ||
+        existing.xMax !== merged.xMax ||
+        existing.yMin !== merged.yMin ||
+        existing.yMax !== merged.yMax
+      ) {
+        domainGroupStore.update((map) => {
+          map.set(domainGroupKey, merged);
+          return map;
+        });
+      }
+      sharedDomainPoints = buildDomainPoints(merged, year);
+    } else {
+      sharedDomainPoints = null;
+    }
+    if (hoverGroupKey) {
+      const hoveredAgency = $hoverGroupStore.get(hoverGroupKey) ?? null;
+      if (hoveredAgency) {
+        const normalizedHover = normalize(hoveredAgency);
+        hoverPoint =
+          yearPoints.find((point) => normalize(point.agency) === normalizedHover) ||
+          null;
+      } else {
+        hoverPoint = null;
+      }
+    } else {
+      hoverPoint = null;
+    }
   }
 
 </script>
 
-  <div class="rounded-lg border border-slate-200 bg-white p-3">
-    <div class="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-      {(title || m?.agency_scatter_heading?.()) ?? "Search rate vs contraband hit rate"}
-    </div>
+<div class="rounded-lg border border-slate-200 bg-white p-3">
+  <div class="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+    {(title || m?.agency_scatter_heading?.()) ?? "Search rate vs contraband hit rate"}
+  </div>
   {#if isLoading}
     <div class="text-xs text-slate-500">
       {m?.agency_scatter_loading?.() ?? "Loading rate comparison…"}
@@ -459,29 +597,35 @@
     <div class="text-xs text-slate-500">
       {m?.agency_scatter_chart_unavailable?.() ?? "Chart unavailable."}
     </div>
-  {:else if ChartComponent}
-    <div class="h-[280px] w-full">
-      <svelte:component
-        this={ChartComponent}
-        points={yearPoints}
-        domainPoints={allPoints}
-        activePoint={activePoint}
-        formatValue={formatValue}
-        formatStops={formatStops}
-        formatCount={formatCount}
-        xCountLabel={xCountLabel}
-        yCountLabel={yCountLabel}
-        stopsLabel={stopsLabel}
-        sizeByStops={sizeByStops}
-        xScaleType={xScaleType}
-        yScaleType={yScaleType}
-        xLabel={(xLabel || m?.agency_scatter_hit_rate_label?.()) ?? "Hit rate"}
-        yLabel={(yLabel || m?.agency_scatter_search_rate_label?.()) ?? "Search rate"}
-      />
-    </div>
+    {:else if ChartComponent}
+      <div class="h-[280px] w-full">
+        <svelte:component
+          this={ChartComponent}
+          points={yearPoints}
+          domainPoints={sharedDomainPoints ?? undefined}
+          activePoint={activePoint}
+          hoverPoint={hoverPoint}
+          formatValue={formatValue}
+          formatStops={formatStops}
+          formatCount={formatCount}
+          xCountLabel={xCountLabel}
+          yCountLabel={yCountLabel}
+          stopsLabel={stopsLabel}
+          dotRadiusScale={dotRadiusScale}
+          sizeByStops={sizeByStops}
+          xScaleType={xScaleType}
+          yScaleType={yScaleType}
+          onHover={hoverGroupKey ? handleHover : undefined}
+          xLabel={(xLabel || m?.agency_scatter_hit_rate_label?.()) ?? "Hit rate"}
+          yLabel={(yLabel || m?.agency_scatter_search_rate_label?.()) ?? "Search rate"}
+        />
+      </div>
   {:else}
     <div class="text-xs text-slate-500">
       {m?.agency_scatter_chart_loading?.() ?? "Loading chart…"}
     </div>
+  {/if}
+  {#if note}
+    <div class="mt-1 text-xs text-slate-500">{note}</div>
   {/if}
 </div>
