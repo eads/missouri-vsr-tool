@@ -57,10 +57,26 @@
       ? [yExtent?.min ?? 1, yExtent?.max ?? 1]
       : [0, null];
 
+  $: xMax = points.reduce(
+    (max, point) => (Number.isFinite(point.x) && point.x > max ? point.x : max),
+    0
+  );
   $: yMax = points.reduce(
     (max, point) => (Number.isFinite(point.y) && point.y > max ? point.y : max),
     0
   );
+  $: xTicks = (() => {
+    if (xScaleType === "log") {
+      const min = xExtent?.min ?? 1;
+      const max = xExtent?.max ?? min;
+      const scale = scaleLog().domain([min, max]);
+      const ticks = scale.ticks(4);
+      return ticks.length ? ticks : [min];
+    }
+    const scale = scaleLinear().domain([0, xMax]).nice();
+    const ticks = scale.ticks(4);
+    return ticks.length ? ticks : [0];
+  })();
   $: yTicks = (() => {
     if (yScaleType === "log") {
       const min = yExtent?.min ?? 1;
@@ -118,8 +134,10 @@
     {/if}
     <Axis
       placement="bottom"
+      grid={{ class: "stroke-slate-200/70" }}
       rule={{ class: "stroke-slate-400" }}
       tickLength={2}
+      ticks={xTicks}
       label={xLabel}
       labelPlacement="end"
       labelProps={{
