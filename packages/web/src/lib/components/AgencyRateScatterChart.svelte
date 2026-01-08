@@ -1,5 +1,15 @@
 <script lang="ts">
-  import { Chart, Svg, Axis, Points, Rule, Tooltip, Highlight, Text } from "layerchart";
+  import {
+    Chart,
+    Svg,
+    Axis,
+    Points,
+    Rule,
+    Tooltip,
+    Highlight,
+    Text,
+    getChartContext,
+  } from "layerchart";
   import { scaleLinear, scaleLog } from "d3-scale";
 
   type ScatterPoint = {
@@ -53,6 +63,8 @@
   const yLabelOffset = -12;
   const logMinorFactors = [2, 3, 4, 5, 6, 7, 8, 9];
   let lastHoverAgency: string | null = null;
+  let lastMirroredAgency: string | null = null;
+  const chartContext = getChartContext<ScatterPoint>();
 
   const isMajorLogTick = (value: number) => {
     if (!Number.isFinite(value) || value <= 0) return false;
@@ -103,6 +115,38 @@
     lastHoverAgency = nextAgency;
     onHover(point);
   };
+
+  const syncMirroredTooltip = (point: ScatterPoint | null) => {
+    if (!chartContext?.tooltip || !chartContext?.containerRef) return;
+    if (chartContext.tooltip.isHoveringTooltipArea) {
+      lastMirroredAgency = null;
+      return;
+    }
+    if (!point) {
+      if (lastMirroredAgency !== null) {
+        chartContext.tooltip.hide();
+        lastMirroredAgency = null;
+      }
+      return;
+    }
+    if (point.agency === lastMirroredAgency) return;
+    const xValue = chartContext.xGet(point);
+    const yValue = chartContext.yGet(point);
+    if (!Number.isFinite(xValue) || !Number.isFinite(yValue)) return;
+    const rect = chartContext.containerRef.getBoundingClientRect();
+    const clientX = rect.left + chartContext.padding.left + xValue;
+    const clientY = rect.top + chartContext.padding.top + yValue;
+    const event = new PointerEvent("pointermove", {
+      clientX,
+      clientY,
+      bubbles: true,
+    });
+    chartContext.containerRef.dispatchEvent(event);
+    chartContext.tooltip.show(event, point);
+    lastMirroredAgency = point.agency;
+  };
+
+  $: syncMirroredTooltip(hoverPoint);
 
   $: domainSource =
     domainPoints && Array.isArray(domainPoints) && domainPoints.length

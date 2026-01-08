@@ -1,7 +1,11 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { writable } from "svelte/store";
   import * as m from "$lib/paraglide/messages";
+  import {
+    scatterDomainGroupStore,
+    scatterHoverGroupStore,
+    type ScatterDomainRange,
+  } from "$lib/stores/scatter";
 
   type MetricYearSubset = {
     agencies: string[];
@@ -11,12 +15,7 @@
   };
 
   type AxisScaleType = "linear" | "log";
-  type DomainRange = {
-    xMin: number;
-    xMax: number;
-    yMin: number;
-    yMax: number;
-  };
+  type DomainRange = ScatterDomainRange;
 
   const RATE_MULTIPLIER = 100;
   const RATE_METRIC_MAP: Record<string, string> = {
@@ -30,8 +29,6 @@
     "contraband-rate": "contraband",
   };
   const metricDataCache = new Map<string, Promise<MetricYearSubset>>();
-  const domainGroupStore = writable(new Map<string, DomainRange>());
-  const hoverGroupStore = writable(new Map<string, string | null>());
 
   const normalizePayload = (payload: unknown): MetricYearSubset => {
     if (!payload || typeof payload !== "object") {
@@ -494,7 +491,7 @@
 
   const updateHoverGroup = (groupKey: string | null, pointAgency: string | null) => {
     if (!groupKey) return;
-    hoverGroupStore.update((map) => {
+    scatterHoverGroupStore.update((map) => {
       const current = map.get(groupKey) ?? null;
       if (current === pointAgency) return map;
       map.set(groupKey, pointAgency);
@@ -534,7 +531,7 @@
     }
     const localDomain = buildDomainFromPoints(yearPoints);
     if (domainGroupKey && localDomain) {
-      const currentMap = $domainGroupStore;
+      const currentMap = $scatterDomainGroupStore;
       const existing = currentMap.get(domainGroupKey);
       const merged = existing
         ? {
@@ -551,7 +548,7 @@
         existing.yMin !== merged.yMin ||
         existing.yMax !== merged.yMax
       ) {
-        domainGroupStore.update((map) => {
+        scatterDomainGroupStore.update((map) => {
           map.set(domainGroupKey, merged);
           return map;
         });
@@ -561,7 +558,7 @@
       sharedDomainPoints = null;
     }
     if (hoverGroupKey) {
-      const hoveredAgency = $hoverGroupStore.get(hoverGroupKey) ?? null;
+      const hoveredAgency = $scatterHoverGroupStore.get(hoverGroupKey) ?? null;
       if (hoveredAgency) {
         const normalizedHover = normalize(hoveredAgency);
         hoverPoint =
