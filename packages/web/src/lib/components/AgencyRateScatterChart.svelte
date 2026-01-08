@@ -23,6 +23,7 @@
   export let yLabel = "";
   export let xCountLabel = "";
   export let yCountLabel = "";
+  export let stopsLabel = "Total stops";
   export let sizeByStops = false;
   export let xScaleType: "linear" | "log" = "linear";
   export let yScaleType: "linear" | "log" = "linear";
@@ -224,7 +225,7 @@
           {/if}
           {#if Number.isFinite(data?.stops)}
             <Tooltip.Item
-              label="Total stops"
+              label={stopsLabel}
               value={formatStops(data.stops)}
               valueAlign="right"
             />

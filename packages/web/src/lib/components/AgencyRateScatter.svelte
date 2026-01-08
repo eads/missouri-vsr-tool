@@ -77,18 +77,25 @@
   export let sizeByStops = false;
   export let minCount: number | null = null;
   export let minCountKey = "rates-by-race--totals--searches";
+  export let minCountColumn: string | null = null;
   export let minCountMessage = "Not enough records to display this chart.";
   export let excludeExactValue: number | null = null;
   export let xCountKey: string | null = null;
   export let yCountKey: string | null = null;
+  export let xCountColumn: string | null = null;
+  export let yCountColumn: string | null = null;
   export let xCountLabel = "";
   export let yCountLabel = "";
+  export let stopsLabel = "Total stops";
   export let xScaleType: AxisScaleType = "linear";
   export let yScaleType: AxisScaleType = "linear";
   export let dataUrl = "/data/dist/metric_year_subset.json";
   export let xMetricKey = "rates-by-race--totals--contraband-rate";
   export let yMetricKey = "rates-by-race--totals--searches-rate";
+  export let xColumn: string | null = null;
+  export let yColumn: string | null = null;
   export let stopsMetricKey = "rates-by-race--totals--all-stops";
+  export let stopsColumn: string | null = null;
 
   let isLoading = true;
   let loadError = "";
@@ -155,6 +162,7 @@
     return null;
   };
 
+  const NON_WHITE_COLUMN = "Non-white";
   const buildValueMapFromRows = (
     payload: MetricYearSubset,
     rowKey: string,
@@ -164,15 +172,31 @@
     const rowData = payload.rows?.[rowKey];
     if (!Array.isArray(rowData)) return byYear;
     const valueIndex = payload.columns.indexOf(columnName);
-    if (valueIndex === -1) return byYear;
+    const totalIndex = payload.columns.indexOf("Total");
+    const whiteIndex = payload.columns.indexOf("White");
+    const useNonWhite =
+      columnName === NON_WHITE_COLUMN && totalIndex !== -1 && whiteIndex !== -1;
+    if (!useNonWhite && valueIndex === -1) return byYear;
     rowData.forEach((row) => {
-      if (!Array.isArray(row) || row.length <= valueIndex) return;
+      if (!Array.isArray(row)) return;
       const agencyIndex = Number(row[0]);
       const yearIndex = Number(row[1]);
       const agency = payload.agencies?.[agencyIndex]?.trim() ?? "";
       const year = Number(payload.years?.[yearIndex]);
-      const rawValue = row[valueIndex];
-      const value = rawValue === null || rawValue === undefined ? NaN : Number(rawValue);
+      let value = NaN;
+      if (useNonWhite) {
+        const totalRaw = row[totalIndex];
+        const whiteRaw = row[whiteIndex];
+        const totalValue =
+          totalRaw === null || totalRaw === undefined ? NaN : Number(totalRaw);
+        const whiteValue =
+          whiteRaw === null || whiteRaw === undefined ? NaN : Number(whiteRaw);
+        value = totalValue - whiteValue;
+      } else {
+        if (row.length <= valueIndex) return;
+        const rawValue = row[valueIndex];
+        value = rawValue === null || rawValue === undefined ? NaN : Number(rawValue);
+      }
       if (!agency || !Number.isFinite(year) || !Number.isFinite(value)) return;
       let yearMap = byYear.get(year);
       if (!yearMap) {
@@ -221,15 +245,27 @@
     };
   };
 
-  const buildMetricValueMap = (payload: MetricYearSubset, rowKey: string) => {
+  const buildMetricValueMap = (
+    payload: MetricYearSubset,
+    rowKey: string,
+    columnName = "Total"
+  ) => {
     if (!rowKey) return new Map<number, Map<string, number>>();
     if (payload.rows?.[rowKey]) {
-      return buildValueMapFromRows(payload, rowKey);
+      return buildValueMapFromRows(payload, rowKey, columnName);
     }
     const rateKeys = getRateKeys(rowKey);
     if (!rateKeys) return new Map<number, Map<string, number>>();
-    const numeratorMap = buildValueMapFromRows(payload, rateKeys.numeratorKey);
-    const denominatorMap = buildValueMapFromRows(payload, rateKeys.denominatorKey);
+    const numeratorMap = buildValueMapFromRows(
+      payload,
+      rateKeys.numeratorKey,
+      columnName
+    );
+    const denominatorMap = buildValueMapFromRows(
+      payload,
+      rateKeys.denominatorKey,
+      columnName
+    );
     if (!numeratorMap.size || !denominatorMap.size) {
       return new Map<number, Map<string, number>>();
     }
@@ -331,16 +367,22 @@
     loadError = "";
     try {
       const payload = await fetchMetricData(dataUrl);
-      const xMap = buildMetricValueMap(payload, xMetricKey);
-      const yMap = buildMetricValueMap(payload, yMetricKey);
+      const xMap = buildMetricValueMap(payload, xMetricKey, xColumn ?? "Total");
+      const yMap = buildMetricValueMap(payload, yMetricKey, yColumn ?? "Total");
       const needsStops = sizeByStops || minStops !== null;
       const stopsMap = needsStops
-        ? buildMetricValueMap(payload, stopsMetricKey)
+        ? buildMetricValueMap(payload, stopsMetricKey, stopsColumn ?? "Total")
         : undefined;
-      const xCountMap = xCountKey ? buildMetricValueMap(payload, xCountKey) : undefined;
-      const yCountMap = yCountKey ? buildMetricValueMap(payload, yCountKey) : undefined;
+      const xCountMap = xCountKey
+        ? buildMetricValueMap(payload, xCountKey, xCountColumn ?? "Total")
+        : undefined;
+      const yCountMap = yCountKey
+        ? buildMetricValueMap(payload, yCountKey, yCountColumn ?? "Total")
+        : undefined;
       minCountMap =
-        minCount !== null ? buildMetricValueMap(payload, minCountKey) : null;
+        minCount !== null
+          ? buildMetricValueMap(payload, minCountKey, minCountColumn ?? "Total")
+          : null;
       allPoints = buildPoints(
         yMap,
         xMap,
@@ -429,6 +471,7 @@
         formatCount={formatCount}
         xCountLabel={xCountLabel}
         yCountLabel={yCountLabel}
+        stopsLabel={stopsLabel}
         sizeByStops={sizeByStops}
         xScaleType={xScaleType}
         yScaleType={yScaleType}
