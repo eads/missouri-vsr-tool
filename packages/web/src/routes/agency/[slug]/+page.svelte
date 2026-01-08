@@ -1185,8 +1185,10 @@
                     yCountLabel="Contraband hits"
                     minStops={500}
                     sizeByStops={true}
-                    minSearches={50}
-                    excludeExactValue={100}
+                      minCount={50}
+                      minCountKey="rates-by-race--totals--searches"
+                      minCountMessage="Not enough searches to display this chart."
+                      excludeExactValue={100}
                       minX={0}
                       minY={0}
                       maxX={100}
@@ -1194,6 +1196,37 @@
                     />
                     <p class="text-xs text-slate-500">
                       Requires at least 50 searches to display.
+                    </p>
+                  </div>
+                  <div class="space-y-1">
+                    <AgencyRateScatter
+                      selectedYear={selectedYear}
+                      agencyName={agencyData?.agency ?? data.slug}
+                      title={
+                        (m?.agency_scatter_citation_vs_arrest_heading?.() ??
+                          "Citation rate vs arrest rate")
+                      }
+                      xLabel={m?.agency_scatter_citation_rate_label?.() ?? "Citation rate"}
+                      yLabel={m?.agency_scatter_arrest_rate_label?.() ?? "Arrest rate"}
+                      xMetricKey="rates-by-race--totals--citations-rate"
+                      yMetricKey="rates-by-race--totals--arrests-rate"
+                      xCountKey="rates-by-race--totals--citations"
+                      yCountKey="rates-by-race--totals--arrests"
+                      xCountLabel="Citations"
+                      yCountLabel="Arrests"
+                      minStops={500}
+                      sizeByStops={true}
+                      minCount={50}
+                      minCountKey="rates-by-race--totals--citations"
+                      minCountMessage="Not enough citations to display this chart."
+                      excludeExactValue={100}
+                      minX={0}
+                      minY={0}
+                      maxX={100}
+                      maxY={100}
+                    />
+                    <p class="text-xs text-slate-500">
+                      Requires at least 50 citations to display.
                     </p>
                   </div>
                   <AgencyRateScatter

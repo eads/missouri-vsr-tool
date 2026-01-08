@@ -75,9 +75,9 @@
   export let maxY: number | null = null;
   export let minStops: number | null = null;
   export let sizeByStops = false;
-  export let minSearches: number | null = null;
-  export let minSearchesKey = "rates-by-race--totals--searches";
-  export let minSearchesMessage = "Not enough searches to display this chart.";
+  export let minCount: number | null = null;
+  export let minCountKey = "rates-by-race--totals--searches";
+  export let minCountMessage = "Not enough records to display this chart.";
   export let excludeExactValue: number | null = null;
   export let xCountKey: string | null = null;
   export let yCountKey: string | null = null;
@@ -106,8 +106,8 @@
   }> = [];
   let yearPoints: typeof allPoints = [];
   let activePoint: (typeof allPoints)[number] | null = null;
-  let minSearchesMap: Map<number, Map<string, number>> | null = null;
-  let minSearchesError = "";
+  let minCountMap: Map<number, Map<string, number>> | null = null;
+  let minCountError = "";
 
   const numberFormatter = new Intl.NumberFormat(undefined, {
     maximumFractionDigits: 2,
@@ -241,8 +241,8 @@
     xMap: Map<number, Map<string, number>>,
     stopsMap?: Map<number, Map<string, number>>,
     minStopCount?: number | null,
-    searchesMap?: Map<number, Map<string, number>>,
-    minSearchCount?: number | null,
+    countMap?: Map<number, Map<string, number>>,
+    minCountValue?: number | null,
     xCountMap?: Map<number, Map<string, number>>,
     yCountMap?: Map<number, Map<string, number>>
   ) => {
@@ -252,7 +252,7 @@
     yMap.forEach((yYearMap, year) => {
       const xYearMap = xMap.get(year);
       const stopsYearMap = stopsMap?.get(year);
-      const searchesYearMap = searchesMap?.get(year);
+      const countYearMap = countMap?.get(year);
       const xCountYearMap = xCountMap?.get(year);
       const yCountYearMap = yCountMap?.get(year);
       if (!xYearMap) return;
@@ -261,7 +261,7 @@
         if (!Number.isFinite(xValue)) return;
         if (excluded.has(normalize(agency))) return;
         const stopValue = stopsYearMap?.get(agency);
-        const searchValue = searchesYearMap?.get(agency);
+        const countValue = countYearMap?.get(agency);
         const xCountValue = xCountYearMap?.get(agency);
         const yCountValue = yCountYearMap?.get(agency);
         if (
@@ -272,9 +272,9 @@
           return;
         }
         if (
-          minSearchCount !== null &&
-          minSearchCount !== undefined &&
-          (!Number.isFinite(searchValue) || searchValue < minSearchCount)
+          minCountValue !== null &&
+          minCountValue !== undefined &&
+          (!Number.isFinite(countValue) || countValue < minCountValue)
         ) {
           return;
         }
@@ -339,22 +339,22 @@
         : undefined;
       const xCountMap = xCountKey ? buildMetricValueMap(payload, xCountKey) : undefined;
       const yCountMap = yCountKey ? buildMetricValueMap(payload, yCountKey) : undefined;
-      minSearchesMap =
-        minSearches !== null ? buildMetricValueMap(payload, minSearchesKey) : null;
+      minCountMap =
+        minCount !== null ? buildMetricValueMap(payload, minCountKey) : null;
       allPoints = buildPoints(
         yMap,
         xMap,
         stopsMap,
         minStops,
-        minSearchesMap ?? undefined,
-        minSearches,
+        minCountMap ?? undefined,
+        minCount,
         xCountMap,
         yCountMap
       );
     } catch (error) {
       loadError = error instanceof Error ? error.message : "Unable to load data.";
       allPoints = [];
-      minSearchesMap = null;
+      minCountMap = null;
     } finally {
       isLoading = false;
     }
@@ -373,13 +373,13 @@
 
   $: {
     const year = Number(selectedYear);
-    minSearchesError = "";
-    if (minSearches !== null && minSearchesMap && Number.isFinite(year)) {
-      const yearMap = minSearchesMap.get(year);
+    minCountError = "";
+    if (minCount !== null && minCountMap && Number.isFinite(year)) {
+      const yearMap = minCountMap.get(year);
       if (yearMap) {
         const value = findAgencyValue(yearMap, agencyName || "");
-        if (value !== null && value < minSearches) {
-          minSearchesError = minSearchesMessage;
+        if (value !== null && value < minCount) {
+          minCountError = minCountMessage;
         }
       }
     }
@@ -407,8 +407,8 @@
     </div>
   {:else if loadError}
     <div class="text-xs text-rose-600">{loadError}</div>
-  {:else if minSearchesError}
-    <div class="text-xs text-rose-600">{minSearchesError}</div>
+  {:else if minCountError}
+    <div class="text-xs text-rose-600">{minCountError}</div>
   {:else if yearPoints.length === 0}
     <div class="text-xs text-slate-500">
       {m?.agency_scatter_no_data?.() ?? "No rate data available for this year."}
