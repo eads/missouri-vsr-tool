@@ -95,6 +95,7 @@
   export let yScaleType: AxisScaleType = "linear";
   export let note = "";
   export let domainGroup: string | null = null;
+  export let showMeanLines = false;
   export let dataUrl = "/data/dist/metric_year_subset.json";
   export let xMetricKey = "rates-by-race--totals--contraband-rate";
   export let yMetricKey = "rates-by-race--totals--searches-rate";
@@ -126,6 +127,12 @@
   let excludeAboveXCounts: Map<number, number> | null = null;
   let excludeAboveXCount = 0;
   let excludeAboveXNote = "";
+  let meanX: number | null = null;
+  let meanY: number | null = null;
+  let meanXLabel = "";
+  let meanYLabel = "";
+  let resolvedXLabel = "";
+  let resolvedYLabel = "";
 
   const numberFormatter = new Intl.NumberFormat(undefined, {
     maximumFractionDigits: 2,
@@ -204,6 +211,18 @@
       yMin: resolvedYMin,
       yMax: resolvedYMax,
     };
+  };
+
+  const computeMean = (points: typeof allPoints, key: "x" | "y") => {
+    let total = 0;
+    let count = 0;
+    points.forEach((point) => {
+      const value = point[key];
+      if (!Number.isFinite(value)) return;
+      total += value;
+      count += 1;
+    });
+    return count ? total / count : null;
   };
 
   const shouldExcludeValue = (value: number) =>
@@ -528,6 +547,8 @@
       yearPoints = [];
       activePoint = null;
       excludeAboveXCount = 0;
+      meanX = null;
+      meanY = null;
     } else {
       yearPoints = allPoints.filter((point) => point.year === year);
       const normalizedAgency = normalize(agencyName || "");
@@ -535,6 +556,8 @@
         yearPoints.find((point) => normalize(point.agency) === normalizedAgency) ||
         null;
       excludeAboveXCount = excludeAboveXCounts?.get(year) ?? 0;
+      meanX = showMeanLines ? computeMean(yearPoints, "x") : null;
+      meanY = showMeanLines ? computeMean(yearPoints, "y") : null;
     }
     localDomain = buildDomainFromPoints(yearPoints);
   }
@@ -580,6 +603,18 @@
         }) ??
         `Removes ${formatCount(excludeAboveXCount)} depts with search rates over 50% while we investigate.`)
       : "";
+  $: resolvedXLabel =
+    (xLabel || m?.agency_scatter_hit_rate_label?.()) ?? "Hit rate";
+  $: resolvedYLabel =
+    (yLabel || m?.agency_scatter_search_rate_label?.()) ?? "Search rate";
+  $: meanXLabel = showMeanLines
+    ? (m?.agency_scatter_mean_label?.({ label: resolvedXLabel }) ??
+      `Mean ${resolvedXLabel}`)
+    : "";
+  $: meanYLabel = showMeanLines
+    ? (m?.agency_scatter_mean_label?.({ label: resolvedYLabel }) ??
+      `Mean ${resolvedYLabel}`)
+    : "";
 
 </script>
 
@@ -610,6 +645,10 @@
           points={yearPoints}
           domainPoints={sharedDomainPoints ?? undefined}
           activePoint={activePoint}
+          meanX={meanX}
+          meanY={meanY}
+          meanXLabel={meanXLabel}
+          meanYLabel={meanYLabel}
           formatValue={formatValue}
           formatStops={formatStops}
           formatCount={formatCount}
@@ -620,8 +659,8 @@
           sizeByStops={sizeByStops}
           xScaleType={xScaleType}
           yScaleType={yScaleType}
-          xLabel={(xLabel || m?.agency_scatter_hit_rate_label?.()) ?? "Hit rate"}
-          yLabel={(yLabel || m?.agency_scatter_search_rate_label?.()) ?? "Search rate"}
+          xLabel={resolvedXLabel}
+          yLabel={resolvedYLabel}
         />
       </div>
   {:else}

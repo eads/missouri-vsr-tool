@@ -8,6 +8,7 @@
     Tooltip,
     Highlight,
     Text,
+    AnnotationLine,
   } from "layerchart";
   import { scaleLinear, scaleLog } from "d3-scale";
 
@@ -24,6 +25,10 @@
   export let points: ScatterPoint[] = [];
   export let domainPoints: ScatterPoint[] | null = null;
   export let activePoint: ScatterPoint | null = null;
+  export let meanX: number | null = null;
+  export let meanY: number | null = null;
+  export let meanXLabel = "";
+  export let meanYLabel = "";
   export let formatValue: (value: number | null | undefined) => string = (value) =>
     value === null || value === undefined ? "—" : String(value);
   export let formatCount: (value: number | null | undefined) => string = (value) =>
@@ -45,6 +50,8 @@
   const topLabelStyle = "fill: #0f172a; font-size: 10px; font-weight: 600;";
   const gridLineMajorClass = "stroke-slate-300/80";
   const gridLineMinorClass = "stroke-slate-200/35";
+  const meanLineClass = "stroke-emerald-500/70";
+  const meanLabelStyle = "fill: #047857; font-size: 10px; font-weight: 600;";
   const xTickCount = 5;
   const yTickCount = 5;
   const baseRadius = 2.2;
@@ -55,6 +62,7 @@
   const dotStrokeWidth = 0.8;
   const scaledBaseRadius = baseRadius * dotRadiusScale;
   const activePointRadius = 5.5 * dotRadiusScale;
+  const axisMotion = { type: "tween", duration: 240 };
   const topPadding = 22;
   const yLabelOffset = -12;
   const logMinorFactors = [2, 3, 4, 5, 6, 7, 8, 9];
@@ -100,7 +108,6 @@
     if (!Number.isFinite(min) || !Number.isFinite(max)) return null;
     return { min, max };
   };
-
 
   $: domainSource =
     domainPoints && Array.isArray(domainPoints) && domainPoints.length
@@ -164,18 +171,18 @@
   <Svg>
     {#if xScaleType === "log" && xLogTicks}
       {#each xLogTicks.minor as tick (tick)}
-        <Rule x={tick} class={gridLineMinorClass} />
+        <Rule x={tick} class={gridLineMinorClass} motion={axisMotion} />
       {/each}
       {#each xLogTicks.major as tick (tick)}
-        <Rule x={tick} class={gridLineMajorClass} />
+        <Rule x={tick} class={gridLineMajorClass} motion={axisMotion} />
       {/each}
     {/if}
     {#if yScaleType === "log" && yLogTicks}
       {#each yLogTicks.minor as tick (tick)}
-        <Rule y={tick} class={gridLineMinorClass} />
+        <Rule y={tick} class={gridLineMinorClass} motion={axisMotion} />
       {/each}
       {#each yLogTicks.major as tick (tick)}
-        <Rule y={tick} class={gridLineMajorClass} />
+        <Rule y={tick} class={gridLineMajorClass} motion={axisMotion} />
       {/each}
     {/if}
     <Axis
@@ -184,6 +191,7 @@
       rule={{ class: "stroke-slate-400" }}
       tickLength={2}
       ticks={yTicks}
+      motion={axisMotion}
       format={(value) =>
         yScaleType === "log" && !isMajorLogTick(value) ? "" : formatValue(value)
       }
@@ -213,6 +221,7 @@
       ticks={xTicks}
       label={xLabel}
       labelPlacement="end"
+      motion={axisMotion}
       labelProps={{
         style: axisLabelStyle,
       }}
@@ -232,6 +241,42 @@
       stroke={dotStroke}
       strokeWidth={dotStrokeWidth}
     />
+    {#if Number.isFinite(meanX)}
+      <AnnotationLine
+        x={meanX}
+        label={meanXLabel || undefined}
+        labelPlacement="top-right"
+        labelXOffset={6}
+        labelYOffset={6}
+        props={{
+          line: {
+            class: meanLineClass,
+            strokeWidth: 2,
+          },
+          label: {
+            style: meanLabelStyle,
+          },
+        }}
+      />
+    {/if}
+    {#if Number.isFinite(meanY)}
+      <AnnotationLine
+        y={meanY}
+        label={meanYLabel || undefined}
+        labelPlacement="bottom-right"
+        labelXOffset={6}
+        labelYOffset={2}
+        props={{
+          line: {
+            class: meanLineClass,
+            strokeWidth: 2,
+          },
+          label: {
+            style: meanLabelStyle,
+          },
+        }}
+      />
+    {/if}
     {#if activePoint}
       <Points
         data={[activePoint]}

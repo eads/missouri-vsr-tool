@@ -262,9 +262,10 @@
   "agency_scatter_contraband_hits_white_label": "Hallazgos de contrabando blancos",
   "agency_scatter_citations_white_label": "Citaciones blancas",
   "agency_scatter_arrests_white_label": "Arrestos blancos",
-  "agency_scatter_min_searches_note": "Requiere al menos 50 b\u00fasquedas para mostrar.",
+  "agency_scatter_min_searches_note": "Requiere al menos 25 b\u00fasquedas para mostrar.",
   "agency_scatter_min_searches_note_small": "Requiere al menos 25 b\u00fasquedas para mostrar.",
   "agency_scatter_min_citations_note": "Requiere al menos 50 citaciones para mostrar.",
   "agency_scatter_min_citations_note_small": "Requiere al menos 25 citaciones para mostrar.",
+  "agency_scatter_mean_label": "Promedio de {label}",
   "agency_scatter_search_rate_outlier_note": "Elimina {count} departamentos con tasas de b\u00fasqueda superiores al 50% mientras investigamos."
 }

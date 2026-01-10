@@ -1234,13 +1234,14 @@
                       <AgencyRateScatter
                         selectedYear={selectedYear}
                         agencyName={agencyData?.agency ?? data.slug}
-                      title={
-                        (m?.agency_scatter_citation_vs_arrest_heading?.() ??
-                          "Citation rate vs arrest rate")
-                      }
-                      domainGroup="citation-arrest"
-                      xLabel={m?.agency_scatter_citation_rate_label?.() ?? "Citation rate"}
-                      yLabel={m?.agency_scatter_arrest_rate_label?.() ?? "Arrest rate"}
+                        title={
+                          (m?.agency_scatter_citation_vs_arrest_heading?.() ??
+                            "Citation rate vs arrest rate")
+                        }
+                        domainGroup="citation-arrest"
+                        showMeanLines={true}
+                        xLabel={m?.agency_scatter_citation_rate_label?.() ?? "Citation rate"}
+                        yLabel={m?.agency_scatter_arrest_rate_label?.() ?? "Arrest rate"}
                         xMetricKey="rates-by-race--totals--citations-rate"
                         yMetricKey="rates-by-race--totals--arrests-rate"
                         xCountKey="rates-by-race--totals--citations"
@@ -1271,14 +1272,15 @@
                       <AgencyRateScatter
                         selectedYear={selectedYear}
                         agencyName={agencyData?.agency ?? data.slug}
-                      title={
-                        (m?.agency_scatter_citation_vs_arrest_nonwhite_heading?.() ??
-                          "Non-white citation rate vs arrest rate")
-                      }
-                      domainGroup="citation-arrest"
-                      xLabel={
-                        m?.agency_scatter_citation_rate_nonwhite_label?.() ??
-                          "Non-white citation rate"
+                        title={
+                          (m?.agency_scatter_citation_vs_arrest_nonwhite_heading?.() ??
+                            "Non-white citation rate vs arrest rate")
+                        }
+                        domainGroup="citation-arrest"
+                        showMeanLines={true}
+                        xLabel={
+                          m?.agency_scatter_citation_rate_nonwhite_label?.() ??
+                            "Non-white citation rate"
                         }
                         yLabel={
                           m?.agency_scatter_arrest_rate_nonwhite_label?.() ??
@@ -1329,14 +1331,15 @@
                       <AgencyRateScatter
                         selectedYear={selectedYear}
                         agencyName={agencyData?.agency ?? data.slug}
-                      title={
-                        (m?.agency_scatter_citation_vs_arrest_white_heading?.() ??
-                          "White citation rate vs arrest rate")
-                      }
-                      domainGroup="citation-arrest"
-                      xLabel={
-                        m?.agency_scatter_citation_rate_white_label?.() ??
-                          "White citation rate"
+                        title={
+                          (m?.agency_scatter_citation_vs_arrest_white_heading?.() ??
+                            "White citation rate vs arrest rate")
+                        }
+                        domainGroup="citation-arrest"
+                        showMeanLines={true}
+                        xLabel={
+                          m?.agency_scatter_citation_rate_white_label?.() ??
+                            "White citation rate"
                         }
                         yLabel={
                           m?.agency_scatter_arrest_rate_white_label?.() ??
@@ -1387,13 +1390,14 @@
                       <AgencyRateScatter
                         selectedYear={selectedYear}
                         agencyName={agencyData?.agency ?? data.slug}
-                      title={
-                        (m?.agency_scatter_search_vs_hit_heading?.() ??
-                          "Search rate vs contraband hit rate")
-                      }
-                      domainGroup="search-contraband"
-                      xLabel={m?.agency_scatter_search_rate_label?.() ?? "Search rate"}
-                      yLabel={m?.agency_scatter_hit_rate_label?.() ?? "Hit rate"}
+                        title={
+                          (m?.agency_scatter_search_vs_hit_heading?.() ??
+                            "Search rate vs contraband hit rate")
+                        }
+                        domainGroup="search-contraband"
+                        showMeanLines={true}
+                        xLabel={m?.agency_scatter_search_rate_label?.() ?? "Search rate"}
+                        yLabel={m?.agency_scatter_hit_rate_label?.() ?? "Hit rate"}
                         xMetricKey="rates-by-race--totals--searches-rate"
                         yMetricKey="rates-by-race--totals--contraband-rate"
                         xCountKey="rates-by-race--totals--searches"
@@ -1406,15 +1410,15 @@
                         minStops={500}
                         sizeByStops={true}
                         stopsLabel={m?.agency_scatter_total_stops_label?.() ?? "Total stops"}
-                        minCount={50}
+                        minCount={25}
                         minCountKey="rates-by-race--totals--searches"
                         minCountMessage={
                           m?.agency_scatter_min_searches_note?.() ??
-                            "Requires at least 50 searches to display."
+                            "Requires at least 25 searches to display."
                         }
                         note={
                           m?.agency_scatter_min_searches_note?.() ??
-                            "Requires at least 50 searches to display."
+                            "Requires at least 25 searches to display."
                         }
                         excludeAboveX={50}
                         minX={0}
@@ -1427,14 +1431,15 @@
                       <AgencyRateScatter
                         selectedYear={selectedYear}
                         agencyName={agencyData?.agency ?? data.slug}
-                      title={
-                        (m?.agency_scatter_search_vs_hit_nonwhite_heading?.() ??
-                          "Non-white search rate vs contraband hit rate")
-                      }
-                      domainGroup="search-contraband"
-                      xLabel={
-                        m?.agency_scatter_search_rate_nonwhite_label?.() ??
-                          "Non-white search rate"
+                        title={
+                          (m?.agency_scatter_search_vs_hit_nonwhite_heading?.() ??
+                            "Non-white search rate vs contraband hit rate")
+                        }
+                        domainGroup="search-contraband"
+                        showMeanLines={true}
+                        xLabel={
+                          m?.agency_scatter_search_rate_nonwhite_label?.() ??
+                            "Non-white search rate"
                         }
                         yLabel={
                           m?.agency_scatter_hit_rate_nonwhite_label?.() ??
@@ -1485,14 +1490,15 @@
                       <AgencyRateScatter
                         selectedYear={selectedYear}
                         agencyName={agencyData?.agency ?? data.slug}
-                      title={
-                        (m?.agency_scatter_search_vs_hit_white_heading?.() ??
-                          "White search rate vs contraband hit rate")
-                      }
-                      domainGroup="search-contraband"
-                      xLabel={
-                        m?.agency_scatter_search_rate_white_label?.() ??
-                          "White search rate"
+                        title={
+                          (m?.agency_scatter_search_vs_hit_white_heading?.() ??
+                            "White search rate vs contraband hit rate")
+                        }
+                        domainGroup="search-contraband"
+                        showMeanLines={true}
+                        xLabel={
+                          m?.agency_scatter_search_rate_white_label?.() ??
+                            "White search rate"
                         }
                         yLabel={
                           m?.agency_scatter_hit_rate_white_label?.() ?? "White hit rate"
