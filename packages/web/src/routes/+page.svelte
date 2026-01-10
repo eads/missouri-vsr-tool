@@ -2,24 +2,10 @@
   import StickyHeader from "$lib/components/StickyHeader.svelte";
   import LocationPicker from "$lib/components/LocationPicker.svelte";
   import * as m from "$lib/paraglide/messages";
-  import { onMount } from "svelte";
 
   export let data;
 
   let selectedLocation = null;
-  let aboutDataHtml = "";
-
-  onMount(async () => {
-    try {
-      // Fetch HTML file client-side only
-      const response = await fetch("/content/about-the-data.html");
-      if (response.ok) {
-        aboutDataHtml = await response.text();
-      }
-    } catch (error) {
-      console.error("Failed to load about data:", error);
-    }
-  });
 
   const formatStops = (value) => {
     const numeric = typeof value === "string" ? Number(value) : value;
@@ -214,7 +200,7 @@
   <section id="about" class="border-t border-slate-200 bg-slate-50 py-12">
     <div class="mx-auto max-w-4xl px-6">
       <div class="prose prose-slate max-w-none prose-headings:text-slate-900 prose-h1:text-3xl prose-h1:font-bold prose-h2:text-xl prose-h2:font-semibold prose-h2:mt-8 prose-p:text-slate-700 prose-p:leading-relaxed prose-ul:text-slate-700 prose-li:text-slate-700">
-        {@html aboutDataHtml}
+        {@html data.aboutDataHtml}
       </div>
 
       <div class="mt-12 rounded-lg border-2 border-green-100 bg-green-50 p-6">
