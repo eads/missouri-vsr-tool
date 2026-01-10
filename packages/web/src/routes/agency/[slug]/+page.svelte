@@ -14,18 +14,15 @@
   import * as m from "$lib/paraglide/messages";
   import { getLocale } from "$lib/paraglide/runtime";
   import {
-    agency_geocode_summary,
     agency_location_heading,
     agency_map_loading,
     agency_address_label,
     agency_type_label,
     agency_phone_label,
     agency_jurisdiction_label,
-    agency_metadata_heading,
     agency_metric_header,
     agency_no_rows,
     agency_title_suffix,
-    agency_view_full_json,
     agency_yearly_data_heading,
     race_asian,
     race_black,
@@ -41,22 +38,6 @@
 
   const compareStrings = (a, b) => (a === b ? 0 : a < b ? -1 : 1);
 
-  const sortValue = (value) => {
-    if (Array.isArray(value)) {
-      return value.map(sortValue);
-    }
-    if (value && typeof value === "object") {
-      return Object.keys(value)
-        .sort(compareStrings)
-        .reduce((acc, key) => {
-          acc[key] = sortValue(value[key]);
-          return acc;
-        }, {});
-    }
-    return value;
-  };
-
-  const stableStringify = (value) => JSON.stringify(sortValue(value), null, 2);
   const numberFormatter = new Intl.NumberFormat(undefined, {
     maximumFractionDigits: 1,
   });
@@ -72,8 +53,6 @@
   let metadata;
   let geocodeAddressResponse;
   let geocodeJurisdictionResponse;
-  let metadataFields = {};
-  let metadataEntries = [];
   let baselines = [];
   let rows = [];
   let rowsByYear = {};
@@ -91,7 +70,6 @@
   let autoExpandVersion = 0;
   let isSearchActive = false;
   let preSearchExpandedGroups = new Set();
-  let geocodeBlocks = [];
   let gridTableEl;
   let agencyCount = 0;
   let locale = "en";
@@ -104,17 +82,7 @@
   $: ({
     geocode_address_response: geocodeAddressResponse,
     geocode_jurisdiction_response: geocodeJurisdictionResponse,
-    ...metadataFields
   } = metadata || {});
-
-  $: geocodeBlocks = [
-    { label: "Address geocode response", data: geocodeAddressResponse },
-    { label: "Jurisdiction geocode response", data: geocodeJurisdictionResponse },
-  ].filter((entry) => entry.data);
-
-  $: metadataEntries = Object.entries(metadataFields || {}).sort(([keyA], [keyB]) =>
-    compareStrings(keyA, keyB)
-  );
 
   $: rows = Array.isArray(agencyData?.rows) ? agencyData.rows : [];
   $: rowsByYear = rows.reduce((acc, row) => {
@@ -1615,48 +1583,6 @@
     {/if}
   </section>
 
-  {#each geocodeBlocks as block}
-    <section class="mb-10">
-      <h2 class="mb-4 text-xl font-semibold text-slate-900">{block.label}</h2>
-      <details class="rounded-xl border border-slate-200 bg-white p-4">
-        <summary class="cursor-pointer text-sm font-semibold text-slate-900">
-          {agency_geocode_summary()}
-        </summary>
-        <div class="mt-3 rounded-xl bg-slate-900 p-4 text-slate-200 shadow-lg">
-          <pre class="whitespace-pre-wrap break-words text-xs leading-relaxed font-mono">{stableStringify(block.data)}</pre>
-        </div>
-      </details>
-    </section>
-  {/each}
-
-  {#if metadata && metadataEntries.length > 0}
-    <section class="mb-10">
-      <details class="rounded-xl border border-slate-200 bg-white p-4">
-        <summary class="cursor-pointer text-sm font-semibold text-slate-900">
-          {agency_metadata_heading()}
-        </summary>
-        <dl class="mt-4 grid gap-3">
-          {#each metadataEntries as [key, value]}
-            <div
-              class="grid gap-2 rounded-xl border border-slate-200 bg-white p-4 md:grid-cols-[minmax(160px,1fr)_2fr] md:gap-4"
-            >
-              <dt class="text-sm font-semibold text-slate-700">{key}</dt>
-              <dd class="text-sm text-slate-600">{formatValue(value)}</dd>
-            </div>
-          {/each}
-        </dl>
-      </details>
-    </section>
-  {/if}
-
-  <details class="rounded-xl border border-slate-200 bg-white p-4">
-    <summary class="cursor-pointer text-sm font-semibold text-slate-900">
-      {agency_view_full_json()}
-    </summary>
-    <div class="mt-3 rounded-xl bg-slate-900 p-4 text-slate-200 shadow-lg">
-      <pre class="whitespace-pre-wrap break-words text-xs leading-relaxed font-mono">{stableStringify(agencyData)}</pre>
-    </div>
-  </details>
 </main>
 
 <MetricChartModal
