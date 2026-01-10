@@ -1,18 +1,19 @@
 <script>
   import * as m from "$lib/paraglide/messages";
   import { onMount } from "svelte";
+  import { QuickScore } from "quick-score";
+  import { goto } from "$app/navigation";
 
-  let mobileMenuOpen = false;
+  export let agencies = [];
+
   let currentLang = "en";
+  let query = "";
+  let results = [];
+  let selectedIndex = -1;
 
   onMount(() => {
-    // Safely get current language from URL path on client side only
     const path = window.location.pathname;
-    if (path.startsWith("/es")) {
-      currentLang = "es";
-    } else {
-      currentLang = "en";
-    }
+    currentLang = path.startsWith("/es") ? "es" : "en";
   });
 
   const handleLanguageChange = (event) => {
@@ -21,95 +22,115 @@
     const newPath = currentPath.replace(/^\/(en|es)/, `/${newLang}`);
     window.location.href = newPath;
   };
+
+  const toLabel = (item) => item?.canonical_name || item?.names?.[0] || item?.agency_slug;
+  const formatStops = (value) => {
+    const numeric = typeof value === "string" ? Number(value) : value;
+    if (!Number.isFinite(numeric)) return null;
+    return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(numeric);
+  };
+
+  $: enrichedAgencies = (agencies || []).map((item) => ({
+    ...item,
+    search: [item?.canonical_name, ...(item?.names || []), item?.county, item?.county_name, item?.city]
+      .filter(Boolean)
+      .join(" "),
+  }));
+
+  $: scorer = enrichedAgencies.length ? new QuickScore(enrichedAgencies, ["search"]) : null;
+
+  $: if (query.trim() && scorer) {
+    results = scorer.search(query.trim()).slice(0, 8);
+  } else {
+    results = [];
+  }
+
+  const handleSelect = (item) => {
+    query = "";
+    results = [];
+    goto(`/agency/${item.agency_slug}`);
+  };
+
+  const handleKeydown = (event) => {
+    if (!results.length) return;
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      selectedIndex = (selectedIndex + 1) % results.length;
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      selectedIndex = (selectedIndex - 1 + results.length) % results.length;
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      const selected = results[selectedIndex]?.item || results[0]?.item;
+      if (selected) handleSelect(selected);
+    } else if (event.key === "Escape") {
+      query = "";
+      results = [];
+    }
+  };
 </script>
 
 <header class="sticky top-0 z-50 border-b-4 border-b-[#28AF57] bg-white/95 backdrop-blur-sm shadow-sm">
   <div class="mx-auto max-w-7xl px-6">
-    <div class="flex items-center justify-between py-3">
-      <!-- Left: Title + Navigation -->
-      <div class="flex items-center gap-6">
-        <h1 class="text-lg font-bold text-[#28AF57]">
-          {m.home_header_title()}
-        </h1>
+    <div class="flex items-center justify-between gap-4 py-3">
+      <a href="/" class="shrink-0 text-lg font-bold text-[#28AF57] no-underline">
+        {m.home_header_title()}
+      </a>
 
-        <!-- Desktop nav -->
-        <nav class="hidden items-center gap-4 md:flex">
-          <a
-            href="#search"
-            class="text-sm font-medium text-slate-700 no-underline transition-colors hover:text-[#28AF57]"
-          >
-            Search
-          </a>
-          <span class="text-slate-300">•</span>
-          <a
-            href="#about"
-            class="text-sm font-medium text-slate-700 no-underline transition-colors hover:text-[#28AF57]"
-          >
-            {m.home_toc_learn()}
-          </a>
-          <span class="text-slate-300">•</span>
-          <a
-            href="#download"
-            class="text-sm font-medium text-slate-700 no-underline transition-colors hover:text-[#28AF57]"
-          >
-            {m.home_toc_download()}
-          </a>
-        </nav>
+      <div class="relative hidden flex-1 max-w-md md:block">
+        <input
+          type="search"
+          placeholder={m.search_placeholder()}
+          bind:value={query}
+          on:keydown={handleKeydown}
+          aria-label={m.search_aria_label()}
+          autocomplete="off"
+          class="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm focus:border-[#28AF57] focus:outline-none"
+        />
+        {#if results.length}
+          <ul class="absolute left-0 right-0 top-full z-50 mt-1 max-h-80 overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+            {#each results as result, index}
+              {@const stops = formatStops(result.item.all_stops_total)}
+              <li>
+                <button
+                  type="button"
+                  on:click={() => handleSelect(result.item)}
+                  class={`flex w-full flex-col gap-0.5 px-3 py-2 text-left text-sm hover:bg-green-50 ${index === selectedIndex ? "bg-green-50" : ""}`}
+                >
+                  <span class="font-medium text-slate-900">{toLabel(result.item)}</span>
+                  {#if stops || result.item.county_name}
+                    <span class="flex items-center gap-2 text-xs text-slate-500">
+                      {#if stops}
+                        <span>{stops} {m.search_stops_label()}</span>
+                      {/if}
+                      {#if result.item.county_name}
+                        <span>• {result.item.county_name}</span>
+                      {/if}
+                    </span>
+                  {/if}
+                </button>
+              </li>
+            {/each}
+          </ul>
+        {/if}
       </div>
 
-      <!-- Right: Language switcher + Donate -->
-      <div class="hidden items-center gap-3 md:flex">
+      <div class="flex items-center gap-3">
         <select
           bind:value={currentLang}
           onchange={handleLanguageChange}
-          class="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold uppercase tracking-wide text-slate-700 shadow-sm transition-colors hover:border-[#28AF57] focus:border-[#28AF57] focus:outline-none"
+          class="hidden rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold uppercase text-slate-700 focus:border-[#28AF57] focus:outline-none md:block"
         >
           <option value="en">EN</option>
           <option value="es">ES</option>
         </select>
         <a
           href="#donate"
-          class="rounded-lg bg-[#28AF57] px-5 py-2 text-sm font-semibold text-white no-underline transition-colors hover:bg-[#229647]"
+          class="rounded-lg bg-[#28AF57] px-4 py-2 text-sm font-semibold text-white no-underline hover:bg-[#229647]"
         >
           {m.home_donate_button()}
         </a>
       </div>
-
-      <!-- Mobile menu button -->
-      <button
-        type="button"
-        onclick={() => (mobileMenuOpen = !mobileMenuOpen)}
-        class="flex items-center gap-2 text-sm font-medium text-slate-700 md:hidden"
-        aria-label="Menu"
-      >
-        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-        </svg>
-      </button>
     </div>
-
-    <!-- Mobile menu dropdown -->
-    {#if mobileMenuOpen}
-      <nav class="border-t border-slate-200 pb-3 md:hidden">
-        <a
-          href="#search"
-          class="block px-4 py-2 text-sm font-medium text-slate-700 no-underline transition-colors hover:bg-slate-50 hover:text-[#28AF57]"
-        >
-          Search
-        </a>
-        <a
-          href="#about"
-          class="block px-4 py-2 text-sm font-medium text-slate-700 no-underline transition-colors hover:bg-slate-50 hover:text-[#28AF57]"
-        >
-          {m.home_toc_learn()}
-        </a>
-        <a
-          href="#download"
-          class="block px-4 py-2 text-sm font-medium text-slate-700 no-underline transition-colors hover:bg-slate-50 hover:text-[#28AF57]"
-        >
-          {m.home_toc_download()}
-        </a>
-      </nav>
-    {/if}
   </div>
 </header>
