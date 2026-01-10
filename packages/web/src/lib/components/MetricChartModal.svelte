@@ -336,6 +336,11 @@
           <h2 class="mt-2 text-xl font-semibold text-slate-900">
             {metricLabel || metricKey}
           </h2>
+          {#if metricKey}
+            <p class="mt-2 text-xs font-mono text-slate-500">
+              {metricKey}
+            </p>
+          {/if}
           {#if tableLabel || sectionLabel}
             <p class="mt-2 text-xs text-slate-500">
               {#if tableLabel}
