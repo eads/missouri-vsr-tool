@@ -1,6 +1,7 @@
 <script>
   import StickyHeader from "$lib/components/StickyHeader.svelte";
   import LocationPicker from "$lib/components/LocationPicker.svelte";
+  import AgencyRateScatter from "$lib/components/AgencyRateScatter.svelte";
   import * as m from "$lib/paraglide/messages";
   import { onMount } from "svelte";
 
@@ -8,6 +9,7 @@
 
   let selectedLocation = null;
   let aboutDataHtml = "";
+  let statsData = null;
 
   onMount(async () => {
     try {
@@ -18,6 +20,16 @@
       }
     } catch (error) {
       console.error("Failed to load about data:", error);
+    }
+
+    try {
+      // Fetch 2024 stats data
+      const statsResponse = await fetch("/data/homepage_2024_stats.json");
+      if (statsResponse.ok) {
+        statsData = await statsResponse.json();
+      }
+    } catch (error) {
+      console.error("Failed to load stats data:", error);
     }
   });
 
@@ -97,56 +109,215 @@
       </h2>
 
       <div class="grid gap-6 md:grid-cols-2">
+        <!-- Box 1: Who Gets Stopped -->
         <div class="rounded-lg border border-slate-200 bg-white p-6">
-          <h3 class="text-xl font-bold text-slate-900">
-            {m.home_highlight_1_title()}
-          </h3>
-          <p class="mt-3 leading-relaxed text-slate-600">
-            {m.home_highlight_1_text()}
-          </p>
-          <!-- Chart placeholder -->
-          <div class="mt-4 flex h-48 items-center justify-center rounded border-2 border-dashed border-slate-200 bg-slate-50">
-            <span class="text-sm text-slate-400">Chart placeholder</span>
+          <div class="mb-4">
+            {#if statsData}
+              <div class="mb-1 text-4xl font-extrabold text-slate-900">
+                {formatStops(statsData.total_stops)}
+              </div>
+              <h3 class="text-lg font-bold text-slate-700">
+                Traffic Stops in 2024
+              </h3>
+            {:else}
+              <h3 class="text-xl font-bold text-slate-900">
+                Who Gets Stopped
+              </h3>
+            {/if}
+            <p class="mt-2 text-sm leading-relaxed text-slate-600">
+              In Berkeley, 86% of stops were Black drivers. Statewide, the pattern is clear: Black Missourians are stopped at nearly double their population share.
+            </p>
           </div>
+
+          {#if statsData}
+            <div class="grid grid-cols-2 gap-4">
+              <div class="text-center rounded-lg bg-slate-50 p-4">
+                <div class="text-3xl font-extrabold text-[#095771]">
+                  {((statsData.by_race.all_stops.White / statsData.total_stops) * 100).toFixed(1)}%
+                </div>
+                <div class="mt-1 text-xs font-medium text-slate-600">White drivers</div>
+                <div class="text-[10px] text-slate-500">{formatStops(statsData.by_race.all_stops.White)} stops</div>
+              </div>
+
+              <div class="text-center rounded-lg bg-slate-50 p-4">
+                <div class="text-3xl font-extrabold text-[#2d898b]">
+                  {((statsData.by_race.all_stops.Black / statsData.total_stops) * 100).toFixed(1)}%
+                </div>
+                <div class="mt-1 text-xs font-medium text-slate-600">Black drivers</div>
+                <div class="text-[10px] text-slate-500">{formatStops(statsData.by_race.all_stops.Black)} stops</div>
+              </div>
+
+              <div class="text-center rounded-lg bg-slate-50 p-4">
+                <div class="text-3xl font-extrabold text-[#219255]">
+                  {((statsData.by_race.all_stops.Hispanic / statsData.total_stops) * 100).toFixed(1)}%
+                </div>
+                <div class="mt-1 text-xs font-medium text-slate-600">Hispanic drivers</div>
+                <div class="text-[10px] text-slate-500">{formatStops(statsData.by_race.all_stops.Hispanic)} stops</div>
+              </div>
+
+              <div class="text-center rounded-lg bg-slate-50 p-4">
+                <div class="text-3xl font-extrabold text-[#20a547]">
+                  {((statsData.by_race.all_stops.Asian / statsData.total_stops) * 100).toFixed(1)}%
+                </div>
+                <div class="mt-1 text-xs font-medium text-slate-600">Asian drivers</div>
+                <div class="text-[10px] text-slate-500">{formatStops(statsData.by_race.all_stops.Asian)} stops</div>
+              </div>
+            </div>
+          {:else}
+            <div class="flex h-48 items-center justify-center">
+              <span class="text-sm text-slate-400">Loading data...</span>
+            </div>
+          {/if}
         </div>
 
+        <!-- Box 2: Search Rate vs Hit Rate Scatter -->
         <div class="rounded-lg border border-slate-200 bg-white p-6">
-          <h3 class="text-xl font-bold text-slate-900">
-            {m.home_highlight_2_title()}
-          </h3>
-          <p class="mt-3 leading-relaxed text-slate-600">
-            {m.home_highlight_2_text()}
-          </p>
-          <!-- Chart placeholder -->
-          <div class="mt-4 flex h-48 items-center justify-center rounded border-2 border-dashed border-slate-200 bg-slate-50">
-            <span class="text-sm text-slate-400">Chart placeholder</span>
+          <div class="mb-4">
+            <h3 class="text-xl font-bold text-slate-900">
+              The Search Paradox
+            </h3>
+            <p class="mt-2 text-sm leading-relaxed text-slate-600">
+              Agencies that search more often don't find more contraband. Each dot is an agency—notice how higher search rates (right) don't lead to higher hit rates (up).
+            </p>
           </div>
+
+          <AgencyRateScatter
+            selectedYear={2024}
+            title=""
+            xLabel="Search Rate (%)"
+            yLabel="Hit Rate (%)"
+            xMetricKey="rates-by-race--totals--searches-rate"
+            yMetricKey="rates-by-race--totals--contraband-hit-rate"
+            xColumn="Total"
+            yColumn="Total"
+            xCountKey="rates-by-race--totals--searches"
+            xCountColumn="Total"
+            yCountKey="rates-by-race--totals--contraband"
+            yCountColumn="Total"
+            sizeByStops={false}
+            showMeanLines={false}
+            dotRadiusScale={0.7}
+          />
         </div>
 
+        <!-- Box 3: How Stops End - Outcomes -->
         <div class="rounded-lg border border-slate-200 bg-white p-6">
-          <h3 class="text-xl font-bold text-slate-900">
-            {m.home_highlight_3_title()}
-          </h3>
-          <p class="mt-3 leading-relaxed text-slate-600">
-            {m.home_highlight_3_text()}
-          </p>
-          <!-- Chart placeholder -->
-          <div class="mt-4 flex h-48 items-center justify-center rounded border-2 border-dashed border-slate-200 bg-slate-50">
-            <span class="text-sm text-slate-400">Chart placeholder</span>
+          <div class="mb-4">
+            <h3 class="text-xl font-bold text-slate-900">
+              When Stops Turn Serious
+            </h3>
+            <p class="mt-2 text-sm leading-relaxed text-slate-600">
+              Most stops end with a citation or warning. But Black drivers face arrest at nearly double the rate: 5.8% compared to 3.4% for white drivers.
+            </p>
           </div>
+
+          {#if statsData}
+            <div class="space-y-4">
+              <div class="grid grid-cols-3 gap-3">
+                <div class="text-center rounded-lg bg-[#2d898b]/10 p-3 border-2 border-[#2d898b]">
+                  <div class="text-3xl font-extrabold text-[#2d898b]">
+                    {((statsData.by_race.arrests.Black / statsData.by_race.all_stops.Black) * 100).toFixed(1)}%
+                  </div>
+                  <div class="mt-1 text-[10px] font-medium text-slate-600">Black drivers<br/>arrested</div>
+                </div>
+
+                <div class="text-center rounded-lg bg-slate-50 p-3">
+                  <div class="text-3xl font-extrabold text-[#219255]">
+                    {((statsData.by_race.arrests.Hispanic / statsData.by_race.all_stops.Hispanic) * 100).toFixed(1)}%
+                  </div>
+                  <div class="mt-1 text-[10px] font-medium text-slate-600">Hispanic drivers<br/>arrested</div>
+                </div>
+
+                <div class="text-center rounded-lg bg-slate-50 p-3">
+                  <div class="text-3xl font-extrabold text-[#095771]">
+                    {((statsData.by_race.arrests.White / statsData.by_race.all_stops.White) * 100).toFixed(1)}%
+                  </div>
+                  <div class="mt-1 text-[10px] font-medium text-slate-600">White drivers<br/>arrested</div>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-3 pt-2">
+                <div class="text-center rounded-lg bg-[#227f63]/10 p-4">
+                  <div class="text-4xl font-extrabold text-[#227f63]">
+                    {statsData.summary.citation_rate.toFixed(1)}%
+                  </div>
+                  <div class="mt-1 text-xs font-medium text-slate-600">end in citations</div>
+                </div>
+                <div class="text-center rounded-lg bg-slate-50 p-4">
+                  <div class="text-4xl font-extrabold text-slate-700">
+                    {statsData.summary.search_rate.toFixed(1)}%
+                  </div>
+                  <div class="mt-1 text-xs font-medium text-slate-600">lead to searches</div>
+                </div>
+              </div>
+            </div>
+          {:else}
+            <div class="flex h-48 items-center justify-center">
+              <span class="text-sm text-slate-400">Loading data...</span>
+            </div>
+          {/if}
         </div>
 
+        <!-- Box 4: 2024 Summary -->
         <div class="rounded-lg border border-slate-200 bg-white p-6">
-          <h3 class="text-xl font-bold text-slate-900">
-            {m.home_highlight_4_title()}
-          </h3>
-          <p class="mt-3 leading-relaxed text-slate-600">
-            {m.home_highlight_4_text()}
-          </p>
-          <!-- Chart placeholder -->
-          <div class="mt-4 flex h-48 items-center justify-center rounded border-2 border-dashed border-slate-200 bg-slate-50">
-            <span class="text-sm text-slate-400">Chart placeholder</span>
+          <div class="mb-4">
+            <h3 class="text-xl font-bold text-slate-900">
+              The Full Picture
+            </h3>
+            <p class="mt-2 text-sm leading-relaxed text-slate-600">
+              Across 441 Missouri agencies, officers documented every interaction. These numbers tell the story of who gets stopped, searched, and what happens next.
+            </p>
           </div>
+
+          {#if statsData}
+            <div class="space-y-4">
+              <div class="text-center">
+                <div class="text-4xl font-extrabold text-slate-900">
+                  {formatStops(statsData.total_stops)}
+                </div>
+                <div class="mt-1 text-xs font-medium text-slate-600">Total Stops</div>
+                <div class="text-[10px] text-slate-500">Across {statsData.agency_count} agencies</div>
+              </div>
+
+              <div class="space-y-3">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-medium text-slate-700">Searches</span>
+                  <div class="text-right">
+                    <div class="text-lg font-bold text-[#227f63]">{statsData.summary.search_rate.toFixed(1)}%</div>
+                    <div class="text-[10px] text-slate-500">{formatStops(statsData.by_race.searches.Total)}</div>
+                  </div>
+                </div>
+
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-medium text-slate-700">Hit Rate</span>
+                  <div class="text-right">
+                    <div class="text-lg font-bold text-[#20a547]">{statsData.summary.hit_rate.toFixed(1)}%</div>
+                    <div class="text-[10px] text-slate-500">{formatStops(statsData.by_race.contraband.Total)}</div>
+                  </div>
+                </div>
+
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-medium text-slate-700">Citations</span>
+                  <div class="text-right">
+                    <div class="text-lg font-bold text-[#2d898b]">{statsData.summary.citation_rate.toFixed(1)}%</div>
+                    <div class="text-[10px] text-slate-500">{formatStops(statsData.by_race.citations.Total)}</div>
+                  </div>
+                </div>
+
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-medium text-slate-700">Arrests</span>
+                  <div class="text-right">
+                    <div class="text-lg font-bold text-[#095771]">{statsData.summary.arrest_rate.toFixed(1)}%</div>
+                    <div class="text-[10px] text-slate-500">{formatStops(statsData.by_race.arrests.Total)}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          {:else}
+            <div class="flex h-48 items-center justify-center">
+              <span class="text-sm text-slate-400">Loading data...</span>
+            </div>
+          {/if}
         </div>
       </div>
     </div>
