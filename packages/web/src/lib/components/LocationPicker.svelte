@@ -4,6 +4,7 @@
 
   export let agencies = [];
   export let onSelect = (item) => {};
+  export let compact = false;
 
   let query = "";
   let results = [];
@@ -157,11 +158,14 @@
     aria-label={m.home_location_picker_label()}
     autocomplete="off"
     spellcheck="false"
-    class="w-full rounded-xl border-2 border-slate-300 bg-white px-5 py-3.5 text-base text-slate-900 shadow-sm transition-colors focus:border-[#28AF57] focus:outline-none"
+    class={compact
+      ? "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 transition-colors focus:border-[#1E8E4F] focus:outline-none"
+      : "w-full rounded-xl border-2 border-slate-300 bg-white px-5 py-3.5 text-base text-slate-900 shadow-sm transition-colors focus:border-[#1E8E4F] focus:outline-none"
+    }
   />
   {#if results.length}
     <ul
-      class="absolute left-0 right-0 top-full z-50 mt-2 max-h-80 list-none overflow-y-auto rounded-xl border border-slate-200 bg-white py-2 shadow-xl"
+      class="absolute left-0 right-0 top-full z-[60] mt-2 max-h-80 list-none overflow-y-auto rounded-xl border border-slate-200 bg-white py-2 shadow-xl"
       role="listbox"
     >
       {#each results as result, index}
