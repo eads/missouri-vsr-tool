@@ -108,9 +108,9 @@
         {m.home_highlights_heading()}
       </h2>
 
-      <div class="grid gap-6 md:grid-cols-2">
+      <div class="grid gap-6 md:grid-cols-2 md:grid-rows-2">
         <!-- Box 1: Who Gets Stopped - Bar Chart -->
-        <div class="rounded-lg border border-slate-200 bg-white p-6">
+        <div class="rounded-lg border border-slate-200 bg-white p-6 flex flex-col">
           <div class="mb-4">
             <h3 class="text-xl font-bold text-slate-900">
               Black Drivers: 17% of Stops, 11% of Population
@@ -121,7 +121,7 @@
           </div>
 
           {#if statsData}
-            <div class="space-y-3">
+            <div class="space-y-3 flex-grow">
               <!-- White drivers -->
               <div>
                 <div class="flex items-center justify-between mb-1">
@@ -206,7 +206,7 @@
         </div>
 
         <!-- Box 2: Search Rate vs Hit Rate Scatter -->
-        <div class="rounded-lg border border-slate-200 bg-white p-6">
+        <div class="rounded-lg border border-slate-200 bg-white p-6 flex flex-col">
           <div class="mb-4">
             <h3 class="text-xl font-bold text-slate-900">
               4.8% of Stops Searched, 21.8% Find Contraband
@@ -236,7 +236,7 @@
         </div>
 
         <!-- Box 3: Outcomes Flow - Stacked Bar -->
-        <div class="rounded-lg border border-slate-200 bg-white p-6">
+        <div class="rounded-lg border border-slate-200 bg-white p-6 flex flex-col">
           <div class="mb-4">
             <h3 class="text-xl font-bold text-slate-900">
               532K Citations, 49K Arrests from 1.3M Stops
@@ -247,7 +247,7 @@
           </div>
 
           {#if statsData}
-            <div class="space-y-6">
+            <div class="space-y-6 flex-grow">
               <!-- Stacked horizontal bar -->
               <div class="relative h-16 w-full flex overflow-hidden rounded">
                 <!-- Citations: 41.5% -->
@@ -320,7 +320,7 @@
         </div>
 
         <!-- Box 4: Arrest Rate Comparison - Donut Chart -->
-        <div class="rounded-lg border border-slate-200 bg-white p-6">
+        <div class="rounded-lg border border-slate-200 bg-white p-6 flex flex-col">
           <div class="mb-4">
             <h3 class="text-xl font-bold text-slate-900">
               Black Drivers Arrested at 5.8%—Nearly Double White Drivers
@@ -331,7 +331,7 @@
           </div>
 
           {#if statsData}
-            <div class="space-y-6">
+            <div class="space-y-6 flex-grow flex flex-col justify-center">
               <!-- Circular comparison visualization -->
               <div class="flex flex-wrap items-center justify-center gap-4 md:gap-6">
                 <!-- Black drivers -->
