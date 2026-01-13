@@ -221,14 +221,10 @@
             title=""
             xLabel="Search Rate (%)"
             yLabel="Hit Rate (%)"
-            xMetricKey="rates-by-race--totals--searches-rate"
-            yMetricKey="rates-by-race--totals--contraband-hit-rate"
+            xMetricKey="rates-by-race--rates--search-rate"
+            yMetricKey="rates-by-race--rates--contraband-hit-rate"
             xColumn="Total"
             yColumn="Total"
-            xCountKey="rates-by-race--totals--searches"
-            xCountColumn="Total"
-            yCountKey="rates-by-race--totals--contraband"
-            yCountColumn="Total"
             sizeByStops={false}
             showMeanLines={true}
             dotRadiusScale={0.7}
