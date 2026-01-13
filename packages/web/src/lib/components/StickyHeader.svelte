@@ -77,7 +77,7 @@
         {m.home_header_title()}
       </a>
 
-      <div class="relative w-full md:flex-1 md:max-w-md">
+      <div class="relative w-full md:flex-1 md:max-w-2xl md:mx-auto">
         <input
           type="search"
           placeholder={m.search_placeholder()}
