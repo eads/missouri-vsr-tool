@@ -82,7 +82,7 @@
           type="search"
           placeholder={m.search_placeholder()}
           bind:value={query}
-          on:keydown={handleKeydown}
+          onkeydown={handleKeydown}
           aria-label={m.search_aria_label()}
           autocomplete="off"
           class="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm focus:border-[#28AF57] focus:outline-none"
@@ -94,7 +94,7 @@
               <li>
                 <button
                   type="button"
-                  on:click={() => handleSelect(result.item)}
+                  onclick={() => handleSelect(result.item)}
                   class={`flex w-full flex-col gap-0.5 px-3 py-2 text-left text-sm hover:bg-green-50 ${index === selectedIndex ? "bg-green-50" : ""}`}
                 >
                   <span class="font-medium text-slate-900">{toLabel(result.item)}</span>
