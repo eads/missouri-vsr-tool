@@ -221,10 +221,14 @@
             title=""
             xLabel="Search Rate (%)"
             yLabel="Hit Rate (%)"
-            xMetricKey="rates-by-race--rates--search-rate"
-            yMetricKey="rates-by-race--rates--contraband-hit-rate"
+            xMetricKey="rates-by-race--totals--searches-rate"
+            yMetricKey="rates-by-race--totals--contraband-rate"
             xColumn="Total"
             yColumn="Total"
+            xCountKey="rates-by-race--totals--searches"
+            yCountKey="rates-by-race--totals--contraband"
+            xCountColumn="Total"
+            yCountColumn="Total"
             sizeByStops={false}
             showMeanLines={true}
             dotRadiusScale={0.7}
@@ -329,10 +333,10 @@
           {#if statsData}
             <div class="space-y-6">
               <!-- Circular comparison visualization -->
-              <div class="flex items-center justify-center gap-6">
+              <div class="flex flex-wrap items-center justify-center gap-4 md:gap-6">
                 <!-- Black drivers -->
-                <div class="text-center">
-                  <div class="relative mx-auto h-24 w-24">
+                <div class="text-center flex-shrink-0">
+                  <div class="relative mx-auto h-20 w-20 sm:h-24 sm:w-24">
                     <svg class="h-full w-full -rotate-90" viewBox="0 0 100 100">
                       <!-- Background circle -->
                       <circle
@@ -356,7 +360,7 @@
                       />
                     </svg>
                     <div class="absolute inset-0 flex items-center justify-center">
-                      <span class="text-xl font-bold text-[#2d898b]">
+                      <span class="text-lg sm:text-xl font-bold text-[#2d898b]">
                         {((statsData.by_race.arrests.Black / statsData.by_race.all_stops.Black) * 100).toFixed(1)}%
                       </span>
                     </div>
@@ -366,8 +370,8 @@
                 </div>
 
                 <!-- Hispanic drivers -->
-                <div class="text-center">
-                  <div class="relative mx-auto h-24 w-24">
+                <div class="text-center flex-shrink-0">
+                  <div class="relative mx-auto h-20 w-20 sm:h-24 sm:w-24">
                     <svg class="h-full w-full -rotate-90" viewBox="0 0 100 100">
                       <!-- Background circle -->
                       <circle
@@ -391,7 +395,7 @@
                       />
                     </svg>
                     <div class="absolute inset-0 flex items-center justify-center">
-                      <span class="text-xl font-bold text-[#219255]">
+                      <span class="text-lg sm:text-xl font-bold text-[#219255]">
                         {((statsData.by_race.arrests.Hispanic / statsData.by_race.all_stops.Hispanic) * 100).toFixed(1)}%
                       </span>
                     </div>
@@ -401,8 +405,8 @@
                 </div>
 
                 <!-- White drivers -->
-                <div class="text-center">
-                  <div class="relative mx-auto h-24 w-24">
+                <div class="text-center flex-shrink-0">
+                  <div class="relative mx-auto h-20 w-20 sm:h-24 sm:w-24">
                     <svg class="h-full w-full -rotate-90" viewBox="0 0 100 100">
                       <!-- Background circle -->
                       <circle
@@ -426,7 +430,7 @@
                       />
                     </svg>
                     <div class="absolute inset-0 flex items-center justify-center">
-                      <span class="text-xl font-bold text-[#095771]">
+                      <span class="text-lg sm:text-xl font-bold text-[#095771]">
                         {((statsData.by_race.arrests.White / statsData.by_race.all_stops.White) * 100).toFixed(1)}%
                       </span>
                     </div>
