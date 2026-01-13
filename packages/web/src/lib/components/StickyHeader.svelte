@@ -72,12 +72,12 @@
 
 <header class="sticky top-0 z-50 border-b-4 border-b-[#28AF57] bg-white/95 backdrop-blur-sm shadow-sm">
   <div class="mx-auto max-w-7xl px-6">
-    <div class="flex items-center justify-between gap-4 py-3">
-      <a href="/" class="shrink-0 text-lg font-bold text-[#28AF57] no-underline">
+    <div class="flex flex-col gap-3 py-3 md:flex-row md:items-center md:justify-between md:gap-4">
+      <a href="/" class="shrink-0 text-xl font-bold text-[#28AF57] no-underline md:text-2xl">
         {m.home_header_title()}
       </a>
 
-      <div class="relative hidden flex-1 max-w-md md:block">
+      <div class="relative w-full md:flex-1 md:max-w-md">
         <input
           type="search"
           placeholder={m.search_placeholder()}
@@ -85,7 +85,7 @@
           onkeydown={handleKeydown}
           aria-label={m.search_aria_label()}
           autocomplete="off"
-          class="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm focus:border-[#28AF57] focus:outline-none"
+          class="w-full rounded-lg border-2 border-[#28AF57] bg-white px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#28AF57] focus:ring-offset-1"
         />
         {#if results.length}
           <ul class="absolute left-0 right-0 top-full z-50 mt-1 max-h-80 overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
@@ -115,11 +115,11 @@
         {/if}
       </div>
 
-      <div class="flex items-center gap-3">
+      <div class="flex items-center justify-end gap-3 md:justify-start">
         <select
           bind:value={currentLang}
           onchange={handleLanguageChange}
-          class="hidden rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold uppercase text-slate-700 focus:border-[#28AF57] focus:outline-none md:block"
+          class="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold uppercase text-slate-700 focus:border-[#28AF57] focus:outline-none"
         >
           <option value="en">EN</option>
           <option value="es">ES</option>
