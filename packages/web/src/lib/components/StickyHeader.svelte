@@ -1,25 +1,16 @@
 <script>
   import * as m from "$lib/paraglide/messages";
-  import { onMount } from "svelte";
+  import { getLocale, locales, setLocale } from "$lib/paraglide/runtime";
 
   let mobileMenuOpen = false;
-  let currentLang = "en";
+  let currentLocale = getLocale();
 
-  onMount(() => {
-    // Safely get current language from URL path on client side only
-    const path = window.location.pathname;
-    if (path.startsWith("/es")) {
-      currentLang = "es";
-    } else {
-      currentLang = "en";
-    }
-  });
+  $: currentLocale = getLocale();
 
-  const handleLanguageChange = (event) => {
-    const newLang = event.target.value;
-    const currentPath = window.location.pathname;
-    const newPath = currentPath.replace(/^\/(en|es)/, `/${newLang}`);
-    window.location.href = newPath;
+  const handleLocaleChange = (event) => {
+    const nextLocale = event?.currentTarget?.value;
+    if (!nextLocale || nextLocale === currentLocale) return;
+    setLocale(nextLocale);
   };
 </script>
 
@@ -60,12 +51,13 @@
       <!-- Right: Language switcher + Donate -->
       <div class="hidden items-center gap-3 md:flex">
         <select
-          bind:value={currentLang}
-          onchange={handleLanguageChange}
+          bind:value={currentLocale}
+          onchange={handleLocaleChange}
           class="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold uppercase tracking-wide text-slate-700 shadow-sm transition-colors hover:border-[#28AF57] focus:border-[#28AF57] focus:outline-none"
         >
-          <option value="en">EN</option>
-          <option value="es">ES</option>
+          {#each locales as locale}
+            <option value={locale}>{locale.toUpperCase()}</option>
+          {/each}
         </select>
         <a
           href="#donate"
