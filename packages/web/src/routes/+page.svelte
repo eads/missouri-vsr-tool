@@ -230,7 +230,7 @@
             yCountKey="rates-by-race--totals--contraband"
             yCountColumn="Total"
             sizeByStops={false}
-            showMeanLines={false}
+            showMeanLines={true}
             dotRadiusScale={0.7}
           />
         </div>

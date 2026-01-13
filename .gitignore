@@ -10,4 +10,5 @@ build
 dist
 packages/web/static/data/
 !packages/web/static/data/homepage_2024_stats.json
+!packages/web/static/data/dist/
 .vscode/
