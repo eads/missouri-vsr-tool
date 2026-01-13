@@ -9,4 +9,5 @@ node_modules
 build
 dist
 packages/web/static/data/
+!packages/web/static/data/homepage_2024_stats.json
 .vscode/
