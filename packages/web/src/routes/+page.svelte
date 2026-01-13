@@ -108,7 +108,7 @@
           <a
             href="/data/agency_index.json"
             download
-            class="inline-block rounded-lg bg-[#205845] px-6 py-3 font-semibold text-white no-underline transition-colors hover:bg-[#184534]"
+            class="inline-block rounded-lg bg-[#2c9166] px-6 py-3 font-semibold text-white no-underline transition-colors hover:bg-[#216d4d]"
           >
             Download JSON
           </a>
@@ -124,7 +124,7 @@
           <a
             href="/data/agency_index.json"
             download
-            class="inline-block rounded-lg border-2 border-[#205845] bg-white px-6 py-3 font-semibold text-[#205845] no-underline transition-colors hover:bg-green-50"
+            class="inline-block rounded-lg border-2 border-[#2c9166] bg-white px-6 py-3 font-semibold text-[#2c9166] no-underline transition-colors hover:bg-green-50"
           >
             Coming soon
           </a>
@@ -159,7 +159,7 @@
         <a
           id="donate"
           href="mailto:contact@example.com"
-          class="inline-block rounded-lg bg-[#205845] px-6 py-3 font-semibold text-white no-underline transition-colors hover:bg-[#184534]"
+          class="inline-block rounded-lg bg-[#2c9166] px-6 py-3 font-semibold text-white no-underline transition-colors hover:bg-[#216d4d]"
         >
           {m.home_footer_contact()}
         </a>

@@ -70,10 +70,10 @@
   };
 </script>
 
-<header class="sticky top-0 z-50 border-b-6 border-b-[#205845] bg-white/95 backdrop-blur-sm shadow-sm">
+<header class="sticky top-0 z-50 border-b-6 border-b-[#2c9166] bg-white/95 backdrop-blur-sm shadow-sm">
   <div class="mx-auto max-w-7xl px-6">
     <div class="flex flex-col gap-3 py-3 md:flex-row md:items-center md:justify-between md:gap-4">
-      <a href="/" class="shrink-0 text-xl font-bold text-[#205845] no-underline md:text-2xl">
+      <a href="/" class="shrink-0 text-2xl font-bold text-[#2c9166] no-underline md:text-3xl">
         {m.home_header_title()}
       </a>
 
@@ -85,7 +85,7 @@
           onkeydown={handleKeydown}
           aria-label={m.search_aria_label()}
           autocomplete="off"
-          class="w-full rounded-lg border-2 border-[#205845] bg-white px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#205845] focus:ring-offset-1"
+          class="w-full rounded-lg border-2 border-[#2c9166] bg-white px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2c9166] focus:ring-offset-1"
         />
         {#if results.length}
           <ul class="absolute left-0 right-0 top-full z-50 mt-1 max-h-80 overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
@@ -119,14 +119,14 @@
         <select
           bind:value={currentLang}
           onchange={handleLanguageChange}
-          class="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold uppercase text-slate-700 focus:border-[#205845] focus:outline-none"
+          class="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold uppercase text-slate-700 focus:border-[#2c9166] focus:outline-none"
         >
           <option value="en">EN</option>
           <option value="es">ES</option>
         </select>
         <a
           href="#donate"
-          class="rounded-lg bg-[#205845] px-4 py-2 text-sm font-semibold text-white no-underline hover:bg-[#184534]"
+          class="rounded-lg bg-[#2c9166] px-4 py-2 text-sm font-semibold text-white no-underline hover:bg-[#216d4d]"
         >
           {m.home_donate_button()}
         </a>
