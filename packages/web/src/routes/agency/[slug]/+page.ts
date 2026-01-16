@@ -30,6 +30,7 @@ export async function load({ fetch, params }) {
     slug,
     data,
     baselines,
+    agencies,
     agencyCount: Array.isArray(agencies) ? agencies.length : 0,
     boundary,
   };
