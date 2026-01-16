@@ -3,6 +3,25 @@
   import * as m from "$lib/paraglide/messages";
 
   export let data;
+
+  let selectedLocation = null;
+
+  const formatStops = (value) => {
+    const numeric = typeof value === "string" ? Number(value) : value;
+    if (!Number.isFinite(numeric)) return "0";
+    return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(numeric);
+  };
+
+  const handleLocationSelect = (location) => {
+    selectedLocation = location;
+  };
+
+  $: displayStat = selectedLocation
+    ? m.home_stat_template()
+        .replace("{year}", "2023")
+        .replace("{location}", selectedLocation.canonical_name || selectedLocation.agency_slug)
+        .replace("{stops}", formatStops(selectedLocation.all_stops_total))
+    : m.home_stat_default();
 </script>
 
 <svelte:head>
