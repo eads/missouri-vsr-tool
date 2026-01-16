@@ -29,7 +29,7 @@
   <title>{m.home_hero_headline()}</title>
 </svelte:head>
 
-<StickyHeader />
+<StickyHeader agencies={data.agencies} />
 
 <main class="min-h-screen bg-white">
   <!-- Hero Section -->
