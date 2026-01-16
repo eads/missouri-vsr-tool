@@ -10,6 +10,7 @@
   import GridTextCell from "$lib/components/grid/GridTextCell.svelte";
   import GridValueCell from "$lib/components/grid/GridValueCell.svelte";
   import MetricChartModal from "$lib/components/MetricChartModal.svelte";
+  import StickyHeader from "$lib/components/StickyHeader.svelte";
   import { onMount, tick } from "svelte";
   import * as m from "$lib/paraglide/messages";
   import { getLocale } from "$lib/paraglide/runtime";
@@ -916,6 +917,8 @@
     }
   }
 </script>
+
+<StickyHeader agencies={data.agencies} />
 
 <main class="mx-auto w-full max-w-5xl px-4 pb-16 pt-12 sm:px-6">
   <header class="mb-10">

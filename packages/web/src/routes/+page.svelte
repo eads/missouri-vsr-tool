@@ -1,6 +1,5 @@
 <script>
   import StickyHeader from "$lib/components/StickyHeader.svelte";
-  import LocationPicker from "$lib/components/LocationPicker.svelte";
   import * as m from "$lib/paraglide/messages";
 
   export let data;
@@ -29,47 +28,16 @@
   <title>{m.home_hero_headline()}</title>
 </svelte:head>
 
-<StickyHeader />
+<StickyHeader agencies={data.agencies} />
 
 <main class="min-h-screen bg-white">
   <!-- Hero Section -->
-  <section id="search" class="bg-white px-6 py-10 md:py-16">
-    <div class="mx-auto max-w-4xl">
-      <div class="text-center">
-        <h1 class="text-5xl font-bold tracking-tight text-slate-900 md:text-6xl">
-          {m.home_hero_headline()}
-        </h1>
-        <p class="mt-3 text-xl text-slate-600">
-          {m.home_hero_subheadline()}
-        </p>
-      </div>
-
-      <div class="mx-auto mt-8 max-w-xl">
-        <LocationPicker agencies={data.agencies} onSelect={handleLocationSelect} />
-      </div>
-
-      {#if selectedLocation}
-        <div class="mt-6 animate-in fade-in duration-300">
-          <div class="mx-auto max-w-2xl rounded-lg border-2 border-[#28AF57] bg-green-50 px-6 py-5 text-center">
-            <p class="text-xl font-semibold text-slate-900">
-              {displayStat}
-            </p>
-          </div>
-        </div>
-      {:else}
-        <div class="mt-6 text-center">
-          <p class="text-lg text-slate-600">
-            {displayStat}
-          </p>
-        </div>
-      {/if}
-    </div>
-  </section>
-
-  <!-- Why It Matters -->
-  <section class="bg-white py-10">
-    <div class="mx-auto max-w-3xl px-6">
-      <p class="text-lg leading-relaxed text-slate-700">
+  <section class="bg-white px-6 py-12">
+    <div class="mx-auto max-w-3xl text-center">
+      <h1 class="text-4xl font-bold text-slate-900 md:text-5xl">
+        {m.home_hero_headline()}
+      </h1>
+      <p class="mt-4 text-lg leading-relaxed text-slate-700">
         {m.home_why_text()}
       </p>
     </div>
@@ -159,7 +127,7 @@
           <a
             href="/data/agency_index.json"
             download
-            class="inline-block rounded-lg bg-[#28AF57] px-6 py-3 font-semibold text-white no-underline transition-colors hover:bg-[#229647]"
+            class="inline-block rounded-lg bg-[#2c9166] px-6 py-3 font-semibold text-white no-underline transition-colors hover:bg-[#216d4d]"
           >
             Download JSON
           </a>
@@ -175,7 +143,7 @@
           <a
             href="/data/agency_index.json"
             download
-            class="inline-block rounded-lg border-2 border-[#28AF57] bg-white px-6 py-3 font-semibold text-[#28AF57] no-underline transition-colors hover:bg-green-50"
+            class="inline-block rounded-lg border-2 border-[#2c9166] bg-white px-6 py-3 font-semibold text-[#2c9166] no-underline transition-colors hover:bg-green-50"
           >
             Coming soon
           </a>
@@ -210,7 +178,7 @@
         <a
           id="donate"
           href="mailto:contact@example.com"
-          class="inline-block rounded-lg bg-[#28AF57] px-6 py-3 font-semibold text-white no-underline transition-colors hover:bg-[#229647]"
+          class="inline-block rounded-lg bg-[#2c9166] px-6 py-3 font-semibold text-white no-underline transition-colors hover:bg-[#216d4d]"
         >
           {m.home_footer_contact()}
         </a>
