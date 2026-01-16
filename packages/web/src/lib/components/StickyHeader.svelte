@@ -1,72 +1,114 @@
 <script>
   import * as m from "$lib/paraglide/messages";
-  import { onMount } from "svelte";
-  import { QuickScore } from "quick-score";
   import { goto } from "$app/navigation";
+  import { QuickScore } from "quick-score";
+  import { getLocale, locales, setLocale } from "$lib/paraglide/runtime";
 
   export let agencies = [];
 
-  let currentLang = "en";
   let query = "";
   let results = [];
   let selectedIndex = -1;
+  let previousQuery = "";
+  let mobileMenuOpen = false;
 
-  onMount(() => {
-    const path = window.location.pathname;
-    currentLang = path.startsWith("/es") ? "es" : "en";
-  });
+  $: currentLocale = getLocale();
 
-  const handleLanguageChange = (event) => {
-    const newLang = event.target.value;
-    const currentPath = window.location.pathname;
-    const newPath = currentPath.replace(/^\/(en|es)/, `/${newLang}`);
-    window.location.href = newPath;
-  };
-
-  const toLabel = (item) => item?.canonical_name || item?.names?.[0] || item?.agency_slug;
+  const toLabel = (item) =>
+    item?.canonical_name || item?.names?.[0] || item?.agency_slug || "Unknown agency";
+  const toStops = (item) => item?.all_stops_total;
   const formatStops = (value) => {
     const numeric = typeof value === "string" ? Number(value) : value;
     if (!Number.isFinite(numeric)) return null;
-    return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(numeric);
+    return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(numeric);
   };
+  const toSubLabel = (item) => [item?.city].filter(Boolean).join(" • ");
+  const toSlug = (item) => item?.agency_slug || item?.slug || item?.id;
 
-  $: enrichedAgencies = (agencies || []).map((item) => ({
+  $: searchableAgencies = (agencies || []).map((item) => ({
     ...item,
-    search: [item?.canonical_name, ...(item?.names || []), item?.county, item?.county_name, item?.city]
+    search: [
+      item?.canonical_name,
+      item?.agency_slug,
+      ...(item?.names || []),
+      item?.city,
+      item?.zip,
+    ]
       .filter(Boolean)
       .join(" "),
   }));
 
-  $: scorer = enrichedAgencies.length ? new QuickScore(enrichedAgencies, ["search"]) : null;
+  $: scorer = searchableAgencies.length ? new QuickScore(searchableAgencies, ["search"]) : null;
+
+  $: if (query.trim() !== previousQuery) {
+    previousQuery = query.trim();
+    selectedIndex = -1;
+  }
 
   $: if (query.trim() && scorer) {
-    results = scorer.search(query.trim()).slice(0, 8);
+    const scored = scorer.search(query.trim());
+    const reranked = scored
+      .slice(0, 25)
+      .sort((a, b) => {
+        const aStops = toStops(a.item);
+        const bStops = toStops(b.item);
+        const aValue = typeof aStops === "string" ? Number(aStops) : aStops ?? 0;
+        const bValue = typeof bStops === "string" ? Number(bStops) : bStops ?? 0;
+        if (bValue !== aValue) return bValue - aValue;
+        return b.score - a.score;
+      })
+      .slice(0, 10);
+    results = reranked;
   } else {
     results = [];
   }
 
-  const handleSelect = (item) => {
+  const resetSearch = () => {
     query = "";
     results = [];
-    goto(`/agency/${item.agency_slug}`);
+    selectedIndex = -1;
+  };
+
+  const handleSelect = (item) => {
+    const slug = toSlug(item);
+    if (!slug) return;
+    resetSearch();
+    goto(`/agency/${slug}`).catch(() => {
+      window.location.href = `/agency/${slug}`;
+    });
   };
 
   const handleKeydown = (event) => {
     if (!results.length) return;
+
     if (event.key === "ArrowDown") {
       event.preventDefault();
       selectedIndex = (selectedIndex + 1) % results.length;
-    } else if (event.key === "ArrowUp") {
+      return;
+    }
+
+    if (event.key === "ArrowUp") {
       event.preventDefault();
       selectedIndex = (selectedIndex - 1 + results.length) % results.length;
-    } else if (event.key === "Enter") {
+      return;
+    }
+
+    if (event.key === "Enter") {
       event.preventDefault();
       const selected = results[selectedIndex]?.item || results[0]?.item;
       if (selected) handleSelect(selected);
-    } else if (event.key === "Escape") {
-      query = "";
-      results = [];
+      return;
     }
+
+    if (event.key === "Escape") {
+      resetSearch();
+    }
+  };
+
+  const handleLocaleChange = (event) => {
+    const nextLocale = event?.currentTarget?.value;
+    if (!nextLocale || nextLocale === currentLocale) return;
+    setLocale(nextLocale);
   };
 </script>
 
@@ -82,7 +124,7 @@
           type="search"
           placeholder={m.search_placeholder()}
           bind:value={query}
-          onkeydown={handleKeydown}
+          on:keydown={handleKeydown}
           aria-label={m.search_aria_label()}
           autocomplete="off"
           class="w-full rounded-lg border-2 border-[#2c9166] bg-white px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2c9166] focus:ring-offset-1"
@@ -90,43 +132,49 @@
         {#if results.length}
           <ul class="absolute left-0 right-0 top-full z-50 mt-1 max-h-80 overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
             {#each results as result, index}
-              {@const stops = formatStops(result.item.all_stops_total)}
-              <li>
-                <button
-                  type="button"
-                  onclick={() => handleSelect(result.item)}
-                  class={`flex w-full flex-col gap-0.5 px-3 py-2 text-left text-sm hover:bg-green-50 ${index === selectedIndex ? "bg-green-50" : ""}`}
+              {@const slug = toSlug(result.item)}
+              {@const href = slug ? `/agency/${slug}` : "#"}
+              {@const stops = formatStops(toStops(result.item))}
+              <li role="option">
+                <a
+                  {href}
+                  on:click={slug ? resetSearch : undefined}
+                  aria-disabled={!slug}
+                  class="flex flex-col gap-1 px-4 py-2 text-sm text-slate-900 no-underline hover:bg-[#2c9166]/10 {index === selectedIndex ? 'bg-[#2c9166]/10' : ''}"
                 >
-                  <span class="font-medium text-slate-900">{toLabel(result.item)}</span>
-                  {#if stops || result.item.county_name}
+                  <span class="font-semibold text-slate-900">{toLabel(result.item)}</span>
+                  {#if stops || toSubLabel(result.item)}
                     <span class="flex items-center gap-2 text-xs text-slate-500">
                       {#if stops}
-                        <span>{stops} {m.search_stops_label()}</span>
+                        <span class="font-semibold text-slate-800">{stops} stops</span>
                       {/if}
-                      {#if result.item.county_name}
-                        <span>• {result.item.county_name}</span>
+                      {#if toSubLabel(result.item)}
+                        <span class="opacity-60">•</span>
+                        <span>{toSubLabel(result.item)}</span>
                       {/if}
                     </span>
                   {/if}
-                </button>
+                </a>
               </li>
             {/each}
           </ul>
         {/if}
       </div>
 
-      <div class="flex items-center justify-end gap-3 md:justify-start">
+      <!-- Right: Language switcher + Donate -->
+      <div class="flex items-center gap-3">
         <select
-          bind:value={currentLang}
-          onchange={handleLanguageChange}
-          class="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold uppercase text-slate-700 focus:border-[#2c9166] focus:outline-none"
+          bind:value={currentLocale}
+          on:change={handleLocaleChange}
+          class="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold uppercase tracking-wide text-slate-700 shadow-sm transition-colors hover:border-[#2c9166] focus:border-[#2c9166] focus:outline-none"
         >
-          <option value="en">EN</option>
-          <option value="es">ES</option>
+          {#each locales as locale}
+            <option value={locale}>{locale.toUpperCase()}</option>
+          {/each}
         </select>
         <a
           href="#donate"
-          class="rounded-lg bg-[#2c9166] px-4 py-2 text-sm font-semibold text-white no-underline hover:bg-[#216d4d]"
+          class="rounded-lg bg-[#2c9166] px-4 py-2 text-sm font-semibold text-white no-underline transition-colors hover:bg-[#216d4d]"
         >
           {m.home_donate_button()}
         </a>
