@@ -1205,9 +1205,10 @@
                 <div class="grid gap-4 lg:grid-cols-2">
                   <!-- Chart 1: Search rate vs contraband hit rate -->
                   <div class="rounded-xl border border-slate-200 bg-white p-4">
-                    <h3 class="mb-3 text-sm font-semibold text-slate-800">
-                      Higher search rates don't always mean more contraband found
+                    <h3 class="mb-1 text-sm font-semibold text-slate-800">
+                      Search Rate vs. Hit Rate
                     </h3>
+                    <p class="mb-3 text-xs text-slate-500">Do more searches lead to more contraband? Hover over points to compare.</p>
                     <AgencyRateScatter
                       selectedYear={selectedYear}
                       agencyName={agencyData?.agency ?? data.slug}
@@ -1233,9 +1234,10 @@
 
                   <!-- Chart 2: Contraband disparity -->
                   <div class="rounded-xl border border-slate-200 bg-white p-4">
-                    <h3 class="mb-3 text-sm font-semibold text-slate-800">
-                      Black drivers searched more often, but contraband found at lower rates
+                    <h3 class="mb-1 text-sm font-semibold text-slate-800">
+                      Contraband Hit Rate by Race
                     </h3>
+                    <p class="mb-3 text-xs text-slate-500">When searched, how often is contraband actually found? Hover for breakdown.</p>
                     <ContrabandDisparityChart
                       searchesByRace={searchesData}
                       contrabandByRace={contrabandData}
@@ -1245,9 +1247,10 @@
 
                   <!-- Chart 3: Stop outcomes over time -->
                   <div class="rounded-xl border border-slate-200 bg-white p-4">
-                    <h3 class="mb-3 text-sm font-semibold text-slate-800">
-                      Stop outcomes over time
+                    <h3 class="mb-1 text-sm font-semibold text-slate-800">
+                      What Happens After a Stop?
                     </h3>
+                    <p class="mb-3 text-xs text-slate-500">Track citations, arrests, and searches year over year.</p>
                     <StopOutcomesChart
                       dataByYear={stopOutcomesByYear}
                       years={sortedYears}
@@ -1256,9 +1259,10 @@
 
                   <!-- Chart 4: Stops by race over time -->
                   <div class="rounded-xl border border-slate-200 bg-white p-4">
-                    <h3 class="mb-3 text-sm font-semibold text-slate-800">
-                      Who gets stopped over time
+                    <h3 class="mb-1 text-sm font-semibold text-slate-800">
+                      Who Gets Stopped?
                     </h3>
+                    <p class="mb-3 text-xs text-slate-500">See how stop patterns by race have changed over time.</p>
                     <StopsByRaceChart
                       dataByYear={stopsByRaceByYear}
                       years={sortedYears}

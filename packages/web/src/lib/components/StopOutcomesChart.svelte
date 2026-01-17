@@ -6,30 +6,24 @@
   export let years = [];
 
   const outcomeColors = {
-    stops: "#334155",
     citations: "#0ea5e9",
     arrests: "#ef4444",
-    searches: "#f59e0b",
-    warnings: "#10b981"
+    searches: "#f59e0b"
   };
 
   const outcomeLabels = {
-    stops: "Total Stops",
     citations: "Citations",
     arrests: "Arrests",
-    searches: "Searches",
-    warnings: "Warnings"
+    searches: "Searches"
   };
 
   const formatNumber = (value) => {
     if (value === null || value === undefined) return "—";
-    if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
     if (value >= 1000) return `${(value / 1000).toFixed(0)}K`;
     return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value);
   };
 
-  // Transform data for line chart
-  $: outcomeKeys = ["citations", "arrests", "searches"];
+  const outcomeKeys = ["citations", "arrests", "searches"];
 
   $: lineSeries = outcomeKeys.map(outcome => ({
     outcome,
@@ -37,7 +31,7 @@
     color: outcomeColors[outcome],
     data: years.map(year => ({
       year,
-      value: dataByYear[year]?.[outcome] ?? 0,
+      value: Number(dataByYear[year]?.[outcome]) || 0,
       outcome
     }))
   }));
@@ -47,13 +41,13 @@
   $: valuesByYear = years.reduce((acc, year) => {
     acc[year] = {};
     outcomeKeys.forEach(outcome => {
-      acc[year][outcome] = dataByYear[year]?.[outcome] ?? 0;
+      acc[year][outcome] = Number(dataByYear[year]?.[outcome]) || 0;
     });
     return acc;
   }, {});
 </script>
 
-<div class="h-[200px]">
+<div class="h-[220px]">
   <Chart
     data={allPoints}
     x="year"
@@ -61,7 +55,7 @@
     xScale={scaleBand().paddingInner(0.4).paddingOuter(0.2)}
     yDomain={[0, null]}
     yNice
-    padding={{ left: 50, right: 12, bottom: 24, top: 8 }}
+    padding={{ left: 45, right: 12, bottom: 28, top: 8 }}
     tooltip={{ mode: "quadtree-x" }}
   >
     <Svg>
@@ -122,10 +116,10 @@
   </Chart>
 </div>
 
-<div class="mt-2 flex flex-wrap items-center justify-center gap-3 text-[10px] text-slate-600">
+<div class="mt-2 flex flex-wrap items-center justify-center gap-4 text-xs text-slate-600">
   {#each lineSeries as series}
-    <span class="flex items-center gap-1">
-      <span class="inline-block h-2.5 w-2.5 rounded-sm" style="background-color: {series.color};"></span>
+    <span class="flex items-center gap-1.5">
+      <span class="inline-block h-2 w-4 rounded-sm" style="background-color: {series.color};"></span>
       {series.label}
     </span>
   {/each}

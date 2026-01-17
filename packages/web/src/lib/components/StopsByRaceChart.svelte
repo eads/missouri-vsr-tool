@@ -9,26 +9,21 @@
   const raceColors = {
     White: "#64748b",
     Black: "#0ea5e9",
-    Hispanic: "#f59e0b",
-    Asian: "#10b981",
-    "Native American": "#8b5cf6",
-    Other: "#6b7280"
+    Hispanic: "#f59e0b"
   };
 
   const formatNumber = (value) => {
     if (value === null || value === undefined) return "—";
-    if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
     if (value >= 1000) return `${(value / 1000).toFixed(0)}K`;
     return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value);
   };
 
-  // Transform data for line chart
   $: lineSeries = raceKeys.map(race => ({
     race,
     color: raceColors[race] || "#94a3b8",
     data: years.map(year => ({
       year,
-      value: dataByYear[year]?.[race] ?? 0,
+      value: Number(dataByYear[year]?.[race]) || 0,
       race
     }))
   }));
@@ -38,13 +33,13 @@
   $: valuesByYear = years.reduce((acc, year) => {
     acc[year] = {};
     raceKeys.forEach(race => {
-      acc[year][race] = dataByYear[year]?.[race] ?? 0;
+      acc[year][race] = Number(dataByYear[year]?.[race]) || 0;
     });
     return acc;
   }, {});
 </script>
 
-<div class="h-[200px]">
+<div class="h-[220px]">
   <Chart
     data={allPoints}
     x="year"
@@ -52,7 +47,7 @@
     xScale={scaleBand().paddingInner(0.4).paddingOuter(0.2)}
     yDomain={[0, null]}
     yNice
-    padding={{ left: 50, right: 12, bottom: 24, top: 8 }}
+    padding={{ left: 45, right: 12, bottom: 28, top: 8 }}
     tooltip={{ mode: "quadtree-x" }}
   >
     <Svg>
@@ -113,10 +108,10 @@
   </Chart>
 </div>
 
-<div class="mt-2 flex flex-wrap items-center justify-center gap-3 text-[10px] text-slate-600">
+<div class="mt-2 flex flex-wrap items-center justify-center gap-4 text-xs text-slate-600">
   {#each raceKeys as race}
-    <span class="flex items-center gap-1">
-      <span class="inline-block h-2.5 w-2.5 rounded-sm" style="background-color: {raceColors[race]};"></span>
+    <span class="flex items-center gap-1.5">
+      <span class="inline-block h-2 w-4 rounded-sm" style="background-color: {raceColors[race]};"></span>
       {race}
     </span>
   {/each}
