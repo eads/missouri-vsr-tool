@@ -1,7 +1,6 @@
 <script>
   import StickyHeader from "$lib/components/StickyHeader.svelte";
   import LocationPicker from "$lib/components/LocationPicker.svelte";
-  import AgencyRateScatter from "$lib/components/AgencyRateScatter.svelte";
   import * as m from "$lib/paraglide/messages";
   import { onMount } from "svelte";
 
@@ -10,6 +9,7 @@
   let selectedLocation = null;
   let aboutDataHtml = "";
   let statsData = null;
+  let scatterData = null;
 
   onMount(async () => {
     try {
@@ -31,11 +31,63 @@
     } catch (error) {
       console.error("Failed to load stats data:", error);
     }
+
+    try {
+      // Fetch scatter plot data
+      const metricResponse = await fetch("/data/metric_year_subset.json");
+      if (metricResponse.ok) {
+        const metricData = await metricResponse.json();
+        const yearIndex = metricData.years.indexOf(2024);
+        // Row format: [agency_index, year_index, Total, White, Black, ...]
+        // So Total is at index 2 (after agency_index and year_index)
+        const totalColOffset = 2;
+
+        // Build maps for each metric
+        const searchesMap = new Map();
+        const contrabandMap = new Map();
+        const stopsMap = new Map();
+
+        (metricData.rows["rates-by-race--totals--searches"] || []).forEach(row => {
+          if (row[1] === yearIndex) searchesMap.set(row[0], row[totalColOffset]);
+        });
+        (metricData.rows["rates-by-race--totals--contraband"] || []).forEach(row => {
+          if (row[1] === yearIndex) contrabandMap.set(row[0], row[totalColOffset]);
+        });
+        (metricData.rows["rates-by-race--totals--all-stops"] || []).forEach(row => {
+          if (row[1] === yearIndex) stopsMap.set(row[0], row[totalColOffset]);
+        });
+
+        // Compute rates for each agency
+        const points = [];
+        searchesMap.forEach((searches, agencyIdx) => {
+          const stops = stopsMap.get(agencyIdx) || 0;
+          const contraband = contrabandMap.get(agencyIdx) || 0;
+          if (stops > 100 && searches > 0) {
+            const searchRate = (searches / stops) * 100;
+            const hitRate = (contraband / searches) * 100;
+            if (searchRate > 0 && searchRate < 50 && hitRate >= 0 && hitRate < 100) {
+              points.push({ searchRate, hitRate, agency: metricData.agencies[agencyIdx] });
+            }
+          }
+        });
+        scatterData = points;
+      }
+    } catch (error) {
+      console.error("Failed to load scatter data:", error);
+    }
   });
 
   const formatStops = (value) => {
     const numeric = typeof value === "string" ? Number(value) : value;
     if (!Number.isFinite(numeric)) return "0";
+    if (numeric >= 1000000) {
+      const m = numeric / 1000000;
+      return `${m.toFixed(1)}M`;
+    }
+    if (numeric >= 1000) {
+      const k = numeric / 1000;
+      return `${k.toFixed(1)}K`;
+    }
     return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(numeric);
   };
 
@@ -55,7 +107,7 @@
   <title>{m.home_hero_headline()}</title>
 </svelte:head>
 
-<StickyHeader />
+<StickyHeader agencies={data.agencies} />
 
 <main class="min-h-screen bg-white">
   <!-- Hero Section -->
@@ -108,15 +160,15 @@
         {m.home_highlights_heading()}
       </h2>
 
-      <div class="grid gap-6 md:grid-cols-2 md:grid-rows-2">
+      <div class="grid gap-6 md:grid-cols-2 md:grid-rows-2 md:auto-rows-fr">
         <!-- Box 1: Who Gets Stopped - Bar Chart -->
-        <div class="rounded-lg border border-slate-200 bg-white p-6 flex flex-col">
+        <div class="rounded-lg border border-slate-200 bg-white p-6 flex flex-col min-h-[360px]">
           <div class="mb-4">
             <h3 class="text-xl font-bold text-slate-900">
-              Black Drivers: 17% of Stops, 11% of Population
+              Black drivers were 17% of total stops in 2024, but are only 11% of Missouri's population
             </h3>
             <p class="mt-2 text-sm leading-relaxed text-slate-600">
-              In Berkeley, 86% of stops were Black drivers. Statewide, Black Missourians are stopped at nearly double their population share—{#if statsData}{formatStops(statsData.by_race.all_stops.Black)}{/if} of {#if statsData}{formatStops(statsData.total_stops)}{/if} total stops.
+              Statewide, Black Missourians are stopped at nearly double their population share—{#if statsData}{formatStops(statsData.by_race.all_stops.Black)}{/if} of {#if statsData}{formatStops(statsData.total_stops)}{/if} total stops.
             </p>
           </div>
 
@@ -206,109 +258,136 @@
         </div>
 
         <!-- Box 2: Search Rate vs Hit Rate Scatter -->
-        <div class="rounded-lg border border-slate-200 bg-white p-6 flex flex-col">
+        <div class="rounded-lg border border-slate-200 bg-white p-6 flex flex-col min-h-[360px]">
           <div class="mb-4">
             <h3 class="text-xl font-bold text-slate-900">
-              4.8% of Stops Searched, 21.8% Find Contraband
+              Officers searched 4.8% of stopped drivers, but found contraband in only 1 in 5 of those searches
             </h3>
             <p class="mt-2 text-sm leading-relaxed text-slate-600">
-              Each dot represents an agency. Notice how agencies with higher search rates (moving right) don't necessarily find more contraband (moving up)—the search paradox in action.
+              Each dot represents an agency. Agencies with higher search rates don't necessarily find more contraband—the search paradox in action.
             </p>
           </div>
 
-          <AgencyRateScatter
-            selectedYear={2024}
-            title=""
-            xLabel="Search Rate (%)"
-            yLabel="Hit Rate (%)"
-            xMetricKey="rates-by-race--totals--searches-rate"
-            yMetricKey="rates-by-race--totals--contraband-rate"
-            xColumn="Total"
-            yColumn="Total"
-            xCountKey="rates-by-race--totals--searches"
-            yCountKey="rates-by-race--totals--contraband"
-            xCountColumn="Total"
-            yCountColumn="Total"
-            sizeByStops={false}
-            showMeanLines={true}
-            dotRadiusScale={0.7}
-          />
+          <div class="flex-grow flex flex-col justify-center">
+            {#if scatterData && scatterData.length > 0}
+              {@const maxX = Math.max(...scatterData.map(d => d.searchRate), 10)}
+              {@const maxY = Math.max(...scatterData.map(d => d.hitRate), 30)}
+              {@const padding = { top: 20, right: 20, bottom: 35, left: 45 }}
+              {@const width = 100}
+              {@const height = 100}
+              <svg viewBox="0 0 {width + padding.left + padding.right} {height + padding.top + padding.bottom}" class="w-full h-48">
+                <!-- Grid lines -->
+                {#each [0, 25, 50, 75, 100] as tick}
+                  <line
+                    x1={padding.left}
+                    y1={padding.top + (1 - tick/100) * height}
+                    x2={padding.left + width}
+                    y2={padding.top + (1 - tick/100) * height}
+                    stroke="#e2e8f0"
+                    stroke-width="0.5"
+                  />
+                {/each}
+
+                <!-- Y-axis -->
+                <line x1={padding.left} y1={padding.top} x2={padding.left} y2={padding.top + height} stroke="#94a3b8" stroke-width="1" />
+                <!-- X-axis -->
+                <line x1={padding.left} y1={padding.top + height} x2={padding.left + width} y2={padding.top + height} stroke="#94a3b8" stroke-width="1" />
+
+                <!-- Y-axis labels -->
+                <text x={padding.left - 5} y={padding.top + 4} text-anchor="end" font-size="6" fill="#64748b">{maxY.toFixed(0)}%</text>
+                <text x={padding.left - 5} y={padding.top + height/2 + 2} text-anchor="end" font-size="6" fill="#64748b">{(maxY/2).toFixed(0)}%</text>
+                <text x={padding.left - 5} y={padding.top + height + 2} text-anchor="end" font-size="6" fill="#64748b">0%</text>
+
+                <!-- X-axis labels -->
+                <text x={padding.left} y={padding.top + height + 12} text-anchor="middle" font-size="6" fill="#64748b">0%</text>
+                <text x={padding.left + width/2} y={padding.top + height + 12} text-anchor="middle" font-size="6" fill="#64748b">{(maxX/2).toFixed(0)}%</text>
+                <text x={padding.left + width} y={padding.top + height + 12} text-anchor="middle" font-size="6" fill="#64748b">{maxX.toFixed(0)}%</text>
+
+                <!-- Axis titles -->
+                <text x={padding.left + width/2} y={padding.top + height + 26} text-anchor="middle" font-size="7" fill="#475569" font-weight="500">Search Rate</text>
+                <text x={12} y={padding.top + height/2} text-anchor="middle" font-size="7" fill="#475569" font-weight="500" transform="rotate(-90, 12, {padding.top + height/2})">Hit Rate</text>
+
+                <!-- Data points -->
+                {#each scatterData as point}
+                  <circle
+                    cx={padding.left + (point.searchRate / maxX) * width}
+                    cy={padding.top + (1 - point.hitRate / maxY) * height}
+                    r="2"
+                    fill="rgba(45, 137, 139, 0.5)"
+                    stroke="rgba(45, 137, 139, 0.8)"
+                    stroke-width="0.5"
+                  />
+                {/each}
+              </svg>
+              <p class="text-center text-[10px] text-slate-500 mt-1">{scatterData.length} agencies shown</p>
+            {:else}
+              <div class="flex h-48 items-center justify-center">
+                <span class="text-sm text-slate-400">Loading scatter data...</span>
+              </div>
+            {/if}
+          </div>
         </div>
 
-        <!-- Box 3: Outcomes Flow - Stacked Bar -->
-        <div class="rounded-lg border border-slate-200 bg-white p-6 flex flex-col">
+        <!-- Box 3: Outcomes Flow - Stacked Column Chart -->
+        <div class="rounded-lg border border-slate-200 bg-white p-6 flex flex-col min-h-[360px]">
           <div class="mb-4">
             <h3 class="text-xl font-bold text-slate-900">
-              532K Citations, 49K Arrests from 1.3M Stops
+              Of {#if statsData}{formatStops(statsData.total_stops)}{/if} traffic stops, half resulted in no formal action at all
             </h3>
             <p class="mt-2 text-sm leading-relaxed text-slate-600">
-              From {#if statsData}{formatStops(statsData.total_stops)}{/if} traffic stops in 2024, officers issued citations in 41% of cases, made arrests in 4%, conducted searches in 5%, and took no formal action in half of all stops.
+              Officers issued citations in 41% of cases, made arrests in 4%, and conducted searches in 5%. The remaining stops ended with no citation, arrest, or search.
             </p>
           </div>
 
           {#if statsData}
-            <div class="space-y-6 flex-grow">
-              <!-- Stacked horizontal bar -->
-              <div class="relative h-16 w-full flex overflow-hidden rounded">
-                <!-- Citations: 41.5% -->
-                <div
-                  class="flex items-center justify-center bg-[#227f63] text-white"
-                  style="width: {statsData.summary.citation_rate.toFixed(1)}%"
-                >
-                  <div class="text-center px-2">
-                    <div class="text-sm font-bold">Citations</div>
-                    <div class="text-xs">{statsData.summary.citation_rate.toFixed(1)}%</div>
-                  </div>
+            {@const maxHeight = 120}
+            {@const noActionRate = 100 - statsData.summary.citation_rate - statsData.summary.arrest_rate - statsData.summary.search_rate}
+            {@const maxRate = Math.max(statsData.summary.citation_rate, noActionRate)}
+            <div class="flex-grow flex flex-col justify-center">
+              <!-- Vertical stacked columns -->
+              <div class="flex items-end justify-center gap-8">
+                <!-- Citations column -->
+                <div class="flex flex-col items-center">
+                  <div class="text-xs font-bold text-slate-700 mb-1">{statsData.summary.citation_rate.toFixed(0)}%</div>
+                  <div
+                    class="w-16 bg-[#227f63] rounded-t transition-all duration-500"
+                    style="height: {(statsData.summary.citation_rate / maxRate) * maxHeight}px"
+                  ></div>
+                  <div class="mt-2 text-[10px] text-slate-600 text-center font-medium">Citations</div>
+                  <div class="text-[9px] text-slate-500">{formatStops(statsData.by_race.citations.Total)}</div>
                 </div>
-                <!-- Arrests: 3.9% -->
-                <div
-                  class="flex items-center justify-center bg-[#095771] text-white"
-                  style="width: {statsData.summary.arrest_rate.toFixed(1)}%"
-                >
-                  <div class="text-center px-1">
-                    <div class="text-[10px] font-bold">Arrests</div>
-                    <div class="text-[9px]">{statsData.summary.arrest_rate.toFixed(1)}%</div>
-                  </div>
-                </div>
-                <!-- Searches: 4.8% -->
-                <div
-                  class="flex items-center justify-center bg-[#2d898b] text-white"
-                  style="width: {statsData.summary.search_rate.toFixed(1)}%"
-                >
-                  <div class="text-center px-1">
-                    <div class="text-[10px] font-bold">Searches</div>
-                    <div class="text-[9px]">{statsData.summary.search_rate.toFixed(1)}%</div>
-                  </div>
-                </div>
-                <!-- No action: remainder -->
-                <div
-                  class="flex items-center justify-center bg-slate-200 text-slate-600"
-                  style="width: {(100 - statsData.summary.citation_rate - statsData.summary.arrest_rate - statsData.summary.search_rate).toFixed(1)}%"
-                >
-                  <div class="text-center px-2">
-                    <div class="text-sm font-bold">No Action</div>
-                    <div class="text-xs">{(100 - statsData.summary.citation_rate - statsData.summary.arrest_rate - statsData.summary.search_rate).toFixed(1)}%</div>
-                  </div>
-                </div>
-              </div>
 
-              <!-- Legend with actual counts -->
-              <div class="grid grid-cols-2 gap-3 text-xs">
-                <div class="flex items-center gap-2">
-                  <div class="h-3 w-3 bg-[#227f63]"></div>
-                  <span><span class="font-bold">{formatStops(statsData.by_race.citations.Total)}</span> citations issued</span>
+                <!-- Searches column -->
+                <div class="flex flex-col items-center">
+                  <div class="text-xs font-bold text-slate-700 mb-1">{statsData.summary.search_rate.toFixed(1)}%</div>
+                  <div
+                    class="w-16 bg-[#2d898b] rounded-t transition-all duration-500"
+                    style="height: {(statsData.summary.search_rate / maxRate) * maxHeight}px"
+                  ></div>
+                  <div class="mt-2 text-[10px] text-slate-600 text-center font-medium">Searches</div>
+                  <div class="text-[9px] text-slate-500">{formatStops(statsData.by_race.searches.Total)}</div>
                 </div>
-                <div class="flex items-center gap-2">
-                  <div class="h-3 w-3 bg-[#095771]"></div>
-                  <span><span class="font-bold">{formatStops(statsData.by_race.arrests.Total)}</span> arrests made</span>
+
+                <!-- Arrests column -->
+                <div class="flex flex-col items-center">
+                  <div class="text-xs font-bold text-slate-700 mb-1">{statsData.summary.arrest_rate.toFixed(1)}%</div>
+                  <div
+                    class="w-16 bg-[#095771] rounded-t transition-all duration-500"
+                    style="height: {(statsData.summary.arrest_rate / maxRate) * maxHeight}px"
+                  ></div>
+                  <div class="mt-2 text-[10px] text-slate-600 text-center font-medium">Arrests</div>
+                  <div class="text-[9px] text-slate-500">{formatStops(statsData.by_race.arrests.Total)}</div>
                 </div>
-                <div class="flex items-center gap-2">
-                  <div class="h-3 w-3 bg-[#2d898b]"></div>
-                  <span><span class="font-bold">{formatStops(statsData.by_race.searches.Total)}</span> searches conducted</span>
-                </div>
-                <div class="flex items-center gap-2">
-                  <div class="h-3 w-3 bg-slate-200"></div>
-                  <span><span class="font-bold">{formatStops(statsData.total_stops - statsData.by_race.citations.Total - statsData.by_race.arrests.Total - statsData.by_race.searches.Total)}</span> no formal action</span>
+
+                <!-- No action column -->
+                <div class="flex flex-col items-center">
+                  <div class="text-xs font-bold text-slate-700 mb-1">{noActionRate.toFixed(0)}%</div>
+                  <div
+                    class="w-16 bg-slate-300 rounded-t transition-all duration-500"
+                    style="height: {(noActionRate / maxRate) * maxHeight}px"
+                  ></div>
+                  <div class="mt-2 text-[10px] text-slate-600 text-center font-medium">No Action</div>
+                  <div class="text-[9px] text-slate-500">{formatStops(statsData.total_stops - statsData.by_race.citations.Total - statsData.by_race.arrests.Total - statsData.by_race.searches.Total)}</div>
                 </div>
               </div>
             </div>
@@ -319,134 +398,90 @@
           {/if}
         </div>
 
-        <!-- Box 4: Arrest Rate Comparison - Donut Chart -->
-        <div class="rounded-lg border border-slate-200 bg-white p-6 flex flex-col">
+        <!-- Box 4: Arrest Rate Comparison - Horizontal Lollipop -->
+        <div class="rounded-lg border border-slate-200 bg-white p-6 flex flex-col min-h-[360px]">
           <div class="mb-4">
             <h3 class="text-xl font-bold text-slate-900">
-              Black Drivers Arrested at 5.8%—Nearly Double White Drivers
+              Black drivers were arrested at nearly double the rate of white drivers after traffic stops
             </h3>
             <p class="mt-2 text-sm leading-relaxed text-slate-600">
-              When officers make traffic stops, arrest rates vary significantly by race. Black and Hispanic drivers face arrest at rates nearly double that of white drivers—{#if statsData}{((statsData.by_race.arrests.Black / statsData.by_race.all_stops.Black) * 100).toFixed(1)}%{/if} and {#if statsData}{((statsData.by_race.arrests.Hispanic / statsData.by_race.all_stops.Hispanic) * 100).toFixed(1)}%{/if} compared to {#if statsData}{((statsData.by_race.arrests.White / statsData.by_race.all_stops.White) * 100).toFixed(1)}%{/if}.
+              {#if statsData}Black drivers faced arrest {((statsData.by_race.arrests.Black / statsData.by_race.all_stops.Black) * 100).toFixed(1)}% of the time, compared to {((statsData.by_race.arrests.White / statsData.by_race.all_stops.White) * 100).toFixed(1)}% for white drivers. Hispanic drivers were arrested at {((statsData.by_race.arrests.Hispanic / statsData.by_race.all_stops.Hispanic) * 100).toFixed(1)}%.{/if}
             </p>
           </div>
 
           {#if statsData}
-            <div class="space-y-6 flex-grow flex flex-col justify-center">
-              <!-- Circular comparison visualization -->
-              <div class="flex flex-wrap items-center justify-center gap-4 md:gap-6">
-                <!-- Black drivers -->
-                <div class="text-center flex-shrink-0">
-                  <div class="relative mx-auto h-20 w-20 sm:h-24 sm:w-24">
-                    <svg class="h-full w-full -rotate-90" viewBox="0 0 100 100">
-                      <!-- Background circle -->
-                      <circle
-                        cx="50"
-                        cy="50"
-                        r="40"
-                        stroke="#e2e8f0"
-                        stroke-width="12"
-                        fill="none"
-                      />
-                      <!-- Progress circle -->
-                      <circle
-                        cx="50"
-                        cy="50"
-                        r="40"
-                        stroke="#2d898b"
-                        stroke-width="12"
-                        fill="none"
-                        stroke-dasharray="{(((statsData.by_race.arrests.Black / statsData.by_race.all_stops.Black) * 100) / 100) * 251.2} 251.2"
-                        stroke-linecap="round"
-                      />
-                    </svg>
-                    <div class="absolute inset-0 flex items-center justify-center">
-                      <span class="text-lg sm:text-xl font-bold text-[#2d898b]">
-                        {((statsData.by_race.arrests.Black / statsData.by_race.all_stops.Black) * 100).toFixed(1)}%
-                      </span>
-                    </div>
-                  </div>
-                  <div class="mt-2 text-xs font-medium text-slate-700">Black drivers</div>
-                  <div class="text-[10px] text-slate-500">{formatStops(statsData.by_race.arrests.Black)} arrests</div>
+            {@const blackRate = (statsData.by_race.arrests.Black / statsData.by_race.all_stops.Black) * 100}
+            {@const hispanicRate = (statsData.by_race.arrests.Hispanic / statsData.by_race.all_stops.Hispanic) * 100}
+            {@const whiteRate = (statsData.by_race.arrests.White / statsData.by_race.all_stops.White) * 100}
+            {@const maxRate = Math.max(blackRate, hispanicRate, whiteRate) * 1.15}
+            <div class="flex-grow flex flex-col justify-center space-y-5 px-2">
+              <!-- Black drivers -->
+              <div class="flex items-center gap-3">
+                <div class="w-20 text-right text-xs font-medium text-slate-600 shrink-0">Black</div>
+                <div class="flex-1 relative h-6 flex items-center">
+                  <div class="absolute inset-y-2.5 left-0 right-0 bg-slate-100 rounded-full h-1"></div>
+                  <div
+                    class="absolute inset-y-2.5 left-0 rounded-full h-1 bg-[#2d898b] transition-all duration-500"
+                    style="width: {(blackRate / maxRate) * 100}%"
+                  ></div>
+                  <div
+                    class="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-2 border-white shadow-sm bg-[#2d898b] transition-all duration-500"
+                    style="left: calc({(blackRate / maxRate) * 100}% - 8px)"
+                  ></div>
                 </div>
-
-                <!-- Hispanic drivers -->
-                <div class="text-center flex-shrink-0">
-                  <div class="relative mx-auto h-20 w-20 sm:h-24 sm:w-24">
-                    <svg class="h-full w-full -rotate-90" viewBox="0 0 100 100">
-                      <!-- Background circle -->
-                      <circle
-                        cx="50"
-                        cy="50"
-                        r="40"
-                        stroke="#e2e8f0"
-                        stroke-width="12"
-                        fill="none"
-                      />
-                      <!-- Progress circle -->
-                      <circle
-                        cx="50"
-                        cy="50"
-                        r="40"
-                        stroke="#219255"
-                        stroke-width="12"
-                        fill="none"
-                        stroke-dasharray="{(((statsData.by_race.arrests.Hispanic / statsData.by_race.all_stops.Hispanic) * 100) / 100) * 251.2} 251.2"
-                        stroke-linecap="round"
-                      />
-                    </svg>
-                    <div class="absolute inset-0 flex items-center justify-center">
-                      <span class="text-lg sm:text-xl font-bold text-[#219255]">
-                        {((statsData.by_race.arrests.Hispanic / statsData.by_race.all_stops.Hispanic) * 100).toFixed(1)}%
-                      </span>
-                    </div>
-                  </div>
-                  <div class="mt-2 text-xs font-medium text-slate-700">Hispanic drivers</div>
-                  <div class="text-[10px] text-slate-500">{formatStops(statsData.by_race.arrests.Hispanic)} arrests</div>
-                </div>
-
-                <!-- White drivers -->
-                <div class="text-center flex-shrink-0">
-                  <div class="relative mx-auto h-20 w-20 sm:h-24 sm:w-24">
-                    <svg class="h-full w-full -rotate-90" viewBox="0 0 100 100">
-                      <!-- Background circle -->
-                      <circle
-                        cx="50"
-                        cy="50"
-                        r="40"
-                        stroke="#e2e8f0"
-                        stroke-width="12"
-                        fill="none"
-                      />
-                      <!-- Progress circle -->
-                      <circle
-                        cx="50"
-                        cy="50"
-                        r="40"
-                        stroke="#095771"
-                        stroke-width="12"
-                        fill="none"
-                        stroke-dasharray="{(((statsData.by_race.arrests.White / statsData.by_race.all_stops.White) * 100) / 100) * 251.2} 251.2"
-                        stroke-linecap="round"
-                      />
-                    </svg>
-                    <div class="absolute inset-0 flex items-center justify-center">
-                      <span class="text-lg sm:text-xl font-bold text-[#095771]">
-                        {((statsData.by_race.arrests.White / statsData.by_race.all_stops.White) * 100).toFixed(1)}%
-                      </span>
-                    </div>
-                  </div>
-                  <div class="mt-2 text-xs font-medium text-slate-700">White drivers</div>
-                  <div class="text-[10px] text-slate-500">{formatStops(statsData.by_race.arrests.White)} arrests</div>
+                <div class="w-16 text-right shrink-0">
+                  <span class="text-sm font-bold text-[#2d898b]">{blackRate.toFixed(1)}%</span>
                 </div>
               </div>
 
-              <!-- Overall arrest rate -->
-              <div class="rounded-lg bg-slate-50 p-4 text-center">
-                <div class="text-3xl font-extrabold text-slate-900">
-                  {statsData.summary.arrest_rate.toFixed(1)}%
+              <!-- Hispanic drivers -->
+              <div class="flex items-center gap-3">
+                <div class="w-20 text-right text-xs font-medium text-slate-600 shrink-0">Hispanic</div>
+                <div class="flex-1 relative h-6 flex items-center">
+                  <div class="absolute inset-y-2.5 left-0 right-0 bg-slate-100 rounded-full h-1"></div>
+                  <div
+                    class="absolute inset-y-2.5 left-0 rounded-full h-1 bg-[#219255] transition-all duration-500"
+                    style="width: {(hispanicRate / maxRate) * 100}%"
+                  ></div>
+                  <div
+                    class="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-2 border-white shadow-sm bg-[#219255] transition-all duration-500"
+                    style="left: calc({(hispanicRate / maxRate) * 100}% - 8px)"
+                  ></div>
                 </div>
-                <div class="mt-1 text-xs text-slate-600">
-                  Overall arrest rate across all {statsData.agency_count} agencies
+                <div class="w-16 text-right shrink-0">
+                  <span class="text-sm font-bold text-[#219255]">{hispanicRate.toFixed(1)}%</span>
+                </div>
+              </div>
+
+              <!-- White drivers -->
+              <div class="flex items-center gap-3">
+                <div class="w-20 text-right text-xs font-medium text-slate-600 shrink-0">White</div>
+                <div class="flex-1 relative h-6 flex items-center">
+                  <div class="absolute inset-y-2.5 left-0 right-0 bg-slate-100 rounded-full h-1"></div>
+                  <div
+                    class="absolute inset-y-2.5 left-0 rounded-full h-1 bg-[#095771] transition-all duration-500"
+                    style="width: {(whiteRate / maxRate) * 100}%"
+                  ></div>
+                  <div
+                    class="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-2 border-white shadow-sm bg-[#095771] transition-all duration-500"
+                    style="left: calc({(whiteRate / maxRate) * 100}% - 8px)"
+                  ></div>
+                </div>
+                <div class="w-16 text-right shrink-0">
+                  <span class="text-sm font-bold text-[#095771]">{whiteRate.toFixed(1)}%</span>
+                </div>
+              </div>
+
+              <!-- Scale and overall rate -->
+              <div class="mt-4 pt-4 border-t border-slate-100">
+                <div class="flex items-center justify-between text-[10px] text-slate-400 px-[92px] mb-3">
+                  <span>0%</span>
+                  <span>{(maxRate / 2).toFixed(1)}%</span>
+                  <span>{maxRate.toFixed(1)}%</span>
+                </div>
+                <div class="text-center">
+                  <span class="text-xs text-slate-500">Overall arrest rate: </span>
+                  <span class="text-sm font-bold text-slate-700">{statsData.summary.arrest_rate.toFixed(1)}%</span>
                 </div>
               </div>
             </div>

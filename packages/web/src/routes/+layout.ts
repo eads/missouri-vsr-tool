@@ -1,5 +1,5 @@
 export async function load({ fetch }) {
-  const response = await fetch("/data/dist/agency_index.json");
+  const response = await fetch("/data/agency_index.json");
 
   if (!response.ok) {
     return {

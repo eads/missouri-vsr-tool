@@ -1,6 +1,9 @@
 <script>
   import * as m from "$lib/paraglide/messages";
   import { onMount } from "svelte";
+  import SearchBox from "./SearchBox.svelte";
+
+  export let agencies = [];
 
   let mobileMenuOpen = false;
   let currentLang = "en";
@@ -57,6 +60,11 @@
         </nav>
       </div>
 
+      <!-- Center: Search Box -->
+      <div class="hidden flex-1 justify-center px-4 md:flex">
+        <SearchBox {agencies} />
+      </div>
+
       <!-- Right: Language switcher + Donate -->
       <div class="hidden items-center gap-3 md:flex">
         <select
@@ -91,6 +99,9 @@
     <!-- Mobile menu dropdown -->
     {#if mobileMenuOpen}
       <nav class="border-t border-slate-200 pb-3 md:hidden">
+        <div class="px-4 py-3">
+          <SearchBox {agencies} />
+        </div>
         <a
           href="#search"
           class="block px-4 py-2 text-sm font-medium text-slate-700 no-underline transition-colors hover:bg-slate-50 hover:text-[#28AF57]"

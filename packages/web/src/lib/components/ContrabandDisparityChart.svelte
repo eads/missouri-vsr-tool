@@ -1,19 +1,22 @@
 <script>
-  import { Chart, Svg, Axis, Bars, Tooltip, Highlight } from "layerchart";
-  import { scaleBand } from "d3-scale";
+  import { browser } from "$app/environment";
 
   export let searchesByRace = {};
   export let contrabandByRace = {};
   export let raceKeys = ["White", "Black", "Hispanic"];
 
   const raceColors = {
-    White: "#64748b",
-    Black: "#0ea5e9",
-    Hispanic: "#f59e0b"
+    White: "#095771",
+    Black: "#2d898b",
+    Hispanic: "#219255"
   };
 
   const formatNumber = (value) => {
     if (value === null || value === undefined) return "—";
+    if (value >= 1000) {
+      const k = value / 1000;
+      return k % 1 === 0 ? `${k.toFixed(0)}K` : `${k.toFixed(1)}K`;
+    }
     return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value);
   };
 
@@ -39,72 +42,59 @@
   $: maxHitRate = Math.max(...chartData.map(d => d.hitRate), 1);
 </script>
 
-<div class="h-[220px]">
-  <Chart
-    data={chartData}
-    x="race"
-    y="hitRate"
-    xScale={scaleBand().paddingInner(0.4).paddingOuter(0.2)}
-    yDomain={[0, maxHitRate * 1.15]}
-    yNice
-    padding={{ left: 45, right: 12, bottom: 28, top: 8 }}
-    tooltip={{ mode: "band" }}
-  >
-    <Svg>
-      <Axis
-        placement="left"
-        grid={{ class: "stroke-slate-200/70" }}
-        rule={{ class: "stroke-slate-400" }}
-        tickLength={3}
-        ticks={4}
-        format={(v) => `${v.toFixed(0)}%`}
-        tickLabelProps={{
-          style: "fill: #0f172a; font-size: 10px; font-weight: 600;",
-        }}
-      />
-      <Bars
-        strokeWidth={0}
-        radius={4}
-        fill={(d) => raceColors[d.race] || "#94a3b8"}
-      />
-      <Highlight area />
-      <Axis
-        placement="bottom"
-        rule={{ class: "stroke-slate-400" }}
-        tickLength={3}
-        tickLabelProps={{
-          style: "fill: #64748b; font-size: 11px; font-weight: 500;",
-        }}
-      />
-    </Svg>
-    <Tooltip.Root>
-      {#snippet children({ data })}
-        {#if data}
-          <Tooltip.Header>{data.race}</Tooltip.Header>
-          <Tooltip.List>
-            <Tooltip.Item
-              label="Hit rate"
-              value={formatPercent(data.hitRate)}
-              color={raceColors[data.race]}
-              valueAlign="right"
-            />
-            <Tooltip.Item
-              label="Searches"
-              value={formatNumber(data.searches)}
-              valueAlign="right"
-            />
-            <Tooltip.Item
-              label="Contraband found"
-              value={formatNumber(data.contraband)}
-              valueAlign="right"
-            />
-          </Tooltip.List>
-        {/if}
-      {/snippet}
-    </Tooltip.Root>
-  </Chart>
+<!-- Horizontal lollipop chart - pure CSS/SVG implementation -->
+<div class="h-[200px] sm:h-[220px] flex flex-col justify-center px-2">
+  <div class="space-y-4">
+    {#each chartData as item}
+      <div class="flex items-center gap-3">
+        <!-- Race label -->
+        <div class="w-16 text-right text-xs font-medium text-slate-600 shrink-0">
+          {item.race}
+        </div>
+
+        <!-- Lollipop bar -->
+        <div class="flex-1 relative h-6 flex items-center">
+          <!-- Background track -->
+          <div class="absolute inset-y-2.5 left-0 right-0 bg-slate-100 rounded-full h-1"></div>
+
+          <!-- Filled line -->
+          <div
+            class="absolute inset-y-2.5 left-0 rounded-full h-1 transition-all duration-500"
+            style="width: {(item.hitRate / (maxHitRate * 1.15)) * 100}%; background-color: {item.color};"
+          ></div>
+
+          <!-- Circle at end (lollipop) -->
+          <div
+            class="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-2 border-white shadow-sm transition-all duration-500 flex items-center justify-center"
+            style="left: calc({(item.hitRate / (maxHitRate * 1.15)) * 100}% - 8px); background-color: {item.color};"
+          >
+          </div>
+        </div>
+
+        <!-- Value -->
+        <div class="w-14 text-right text-sm font-semibold shrink-0" style="color: {item.color};">
+          {formatPercent(item.hitRate)}
+        </div>
+      </div>
+    {/each}
+  </div>
+
+  <!-- Scale reference -->
+  <div class="mt-4 flex items-center justify-between text-[10px] text-slate-400 px-[76px]">
+    <span>0%</span>
+    <span>{formatPercent(maxHitRate * 1.15 / 2)}</span>
+    <span>{formatPercent(maxHitRate * 1.15)}</span>
+  </div>
 </div>
 
-<p class="mt-2 text-center text-xs text-slate-500">
-  Hit rate = contraband found ÷ searches. Hover for details.
+<p class="mt-2 text-center text-[11px] text-slate-500">
+  Hit rate = contraband found ÷ searches
 </p>
+
+<!-- Tooltip on hover -->
+<style>
+  .lollipop-item:hover .lollipop-tooltip {
+    opacity: 1;
+    visibility: visible;
+  }
+</style>

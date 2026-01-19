@@ -14,7 +14,7 @@
   export let agencyId = "";
   export let pmtilesUrl = "";
   export let pmtilesSourceLayer = "counties";
-  export let agencyBoundaryBasePath = "/data/dist/agency_boundaries";
+  export let agencyBoundaryBasePath = "/data/agency_boundaries";
   export let boundaryDataOverride = undefined;
   export let basemapPmtilesUrl = "";
   export let basemapStyleUrl = "/map/style.en.json";
