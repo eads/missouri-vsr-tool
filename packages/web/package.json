@@ -18,6 +18,7 @@
     "@tailwindcss/postcss": "^4.1.18",
     "@tailwindcss/typography": "^0.5.19",
     "autoprefixer": "^10.4.23",
+    "mdsvex": "^0.12.6",
     "postcss": "^8.5.6",
     "svelte": "^5.0.0",
     "svelte-check": "^4.0.0",
@@ -29,6 +30,10 @@
   "dependencies": {
     "@inlang/cli": "^3.0.12",
     "@inlang/paraglide-js": "2.7.1",
+    "@mediakular/gridcraft": "^0.2.9",
+    "d3-scale": "^4.0.2",
+    "layercake": "^10.0.2",
+    "layerchart": "^1.0.13",
     "maplibre-gl": "^5.15.0",
     "pmtiles": "^4.3.2",
     "quick-score": "^0.2.0",
