@@ -31,16 +31,6 @@
 
   onMount(async () => {
     try {
-      // Fetch HTML file client-side only
-      const response = await fetch("/content/about-the-data.html");
-      if (response.ok) {
-        aboutDataHtml = await response.text();
-      }
-    } catch (error) {
-      console.error("Failed to load about data:", error);
-    }
-
-    try {
       // Fetch 2024 stats data
       const statsResponse = await fetch("/data/homepage_2024_stats.json");
       if (statsResponse.ok) {
