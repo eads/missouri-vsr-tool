@@ -1,7 +1,6 @@
 <script>
   import { browser } from "$app/environment";
-  import { scaleTime, scaleLinear } from "d3-scale";
-  import { stack, stackOrderNone, stackOffsetNone, area, curveMonotoneX } from "d3-shape";
+  import { scaleBand } from "d3-scale";
 
   export let dataByYear = {};
   export let years = [];
@@ -9,13 +8,15 @@
   const outcomeColors = {
     citations: "#095771",
     arrests: "#2d898b",
-    searches: "#219255"
+    searches: "#219255",
+    noAction: "#94a3b8"
   };
 
   const outcomeLabels = {
     citations: "Citations",
     arrests: "Arrests",
-    searches: "Searches"
+    searches: "Searches",
+    noAction: "No Action"
   };
 
   const formatNumber = (value) => {
@@ -27,65 +28,74 @@
     return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value);
   };
 
-  const outcomeKeys = ["citations", "arrests", "searches"];
+  const outcomeKeys = ["citations", "arrests", "searches", "noAction"];
 
-  // Transform data for stacked area
-  $: stackedData = years.map(year => ({
-    year: Number(year),
-    citations: Number(dataByYear[year]?.citations) || 0,
-    arrests: Number(dataByYear[year]?.arrests) || 0,
-    searches: Number(dataByYear[year]?.searches) || 0,
-  })).sort((a, b) => a.year - b.year);
+  // Transform data for slope chart - compute noAction as stops - (citations + arrests + searches)
+  $: lineSeries = outcomeKeys.map(outcome => ({
+    outcome,
+    label: outcomeLabels[outcome],
+    color: outcomeColors[outcome],
+    data: years.map(year => {
+      const yearData = dataByYear[year] || {};
+      let value;
+      if (outcome === "noAction") {
+        const stops = Number(yearData.stops) || 0;
+        const citations = Number(yearData.citations) || 0;
+        const arrests = Number(yearData.arrests) || 0;
+        const searches = Number(yearData.searches) || 0;
+        value = Math.max(0, stops - citations - arrests - searches);
+      } else {
+        value = Number(yearData[outcome]) || 0;
+      }
+      return { year, value, outcome };
+    })
+  }));
+
+  $: allPoints = lineSeries.flatMap(s => s.data);
 
   $: valuesByYear = years.reduce((acc, year) => {
     acc[year] = {};
+    const yearData = dataByYear[year] || {};
     outcomeKeys.forEach(outcome => {
-      acc[year][outcome] = Number(dataByYear[year]?.[outcome]) || 0;
+      if (outcome === "noAction") {
+        const stops = Number(yearData.stops) || 0;
+        const citations = Number(yearData.citations) || 0;
+        const arrests = Number(yearData.arrests) || 0;
+        const searches = Number(yearData.searches) || 0;
+        acc[year][outcome] = Math.max(0, stops - citations - arrests - searches);
+      } else {
+        acc[year][outcome] = Number(yearData[outcome]) || 0;
+      }
     });
     return acc;
   }, {});
 
   // Dynamically import layerchart only on client
-  let Chart, Svg, Axis, Area, Tooltip, Highlight;
+  let Chart, Svg, Axis, Spline, Points, Tooltip, Highlight;
   $: if (browser) {
     import("layerchart").then((module) => {
       Chart = module.Chart;
       Svg = module.Svg;
       Axis = module.Axis;
-      Area = module.Area;
+      Spline = module.Spline;
+      Points = module.Points;
       Tooltip = module.Tooltip;
       Highlight = module.Highlight;
     });
   }
-
-  // Create stacked series
-  $: stackGenerator = stack()
-    .keys(outcomeKeys)
-    .order(stackOrderNone)
-    .offset(stackOffsetNone);
-
-  $: series = stackedData.length > 0 ? stackGenerator(stackedData) : [];
-
-  // Calculate domains
-  $: xExtent = stackedData.length > 0
-    ? [Math.min(...stackedData.map(d => d.year)), Math.max(...stackedData.map(d => d.year))]
-    : [2020, 2024];
-
-  $: yMax = series.length > 0
-    ? Math.max(...series.flatMap(s => s.flatMap(d => d[1])))
-    : 100;
 </script>
 
-{#if browser && Chart && stackedData.length > 0}
+{#if browser && Chart && allPoints.length > 0}
   <div class="h-[200px] sm:h-[220px]">
     <Chart
-      data={stackedData}
+      data={allPoints}
       x="year"
-      xScale={scaleLinear().domain(xExtent)}
-      yDomain={[0, yMax * 1.1]}
+      y="value"
+      xScale={scaleBand().paddingInner(0.4).paddingOuter(0.2)}
+      yDomain={[0, null]}
       yNice
       padding={{ left: 45, right: 8, bottom: 24, top: 8 }}
-      tooltip={{ mode: "bisect-x" }}
+      tooltip={{ mode: "quadtree-x" }}
     >
       <Svg>
         <Axis
@@ -99,15 +109,20 @@
             style: "fill: #0f172a; font-size: 9px; font-weight: 600;",
           }}
         />
-        {#each series as s, i}
-          <Area
-            data={s}
-            x={(d) => d.data.year}
-            y0={(d) => d[0]}
-            y1={(d) => d[1]}
-            fill={outcomeColors[outcomeKeys[i]]}
-            fillOpacity={0.8}
-            line={{ stroke: outcomeColors[outcomeKeys[i]], class: "stroke-[1.5]" }}
+        {#each lineSeries as series}
+          <Spline
+            data={series.data}
+            x="year"
+            y="value"
+            class="stroke-[2.5]"
+            stroke={series.color}
+          />
+          <Points
+            data={series.data}
+            x="year"
+            y="value"
+            r={4}
+            fill={series.color}
           />
         {/each}
         <Highlight lines />
@@ -115,7 +130,6 @@
           placement="bottom"
           rule={{ class: "stroke-slate-400" }}
           tickLength={3}
-          format={(v) => String(Math.round(v))}
           tickLabelProps={{
             style: "fill: #64748b; font-size: 9px; font-weight: 500;",
           }}
@@ -149,7 +163,7 @@
 <div class="mt-2 flex flex-wrap items-center justify-center gap-3 text-xs text-slate-600">
   {#each outcomeKeys as outcome}
     <span class="flex items-center gap-1">
-      <span class="inline-block h-2.5 w-2.5 rounded-sm" style="background-color: {outcomeColors[outcome]};"></span>
+      <span class="inline-block h-2.5 w-2.5 rounded-full" style="background-color: {outcomeColors[outcome]};"></span>
       <span class="text-[11px]">{outcomeLabels[outcome]}</span>
     </span>
   {/each}
