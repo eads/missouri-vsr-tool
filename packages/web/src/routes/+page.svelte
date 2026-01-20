@@ -53,7 +53,7 @@
 
     try {
       // Fetch scatter plot data
-      const metricResponse = await fetch("/data/metric_year_subset.json");
+      const metricResponse = await fetch("/data/dist/metric_year_subset.json");
       if (metricResponse.ok) {
         const metricData = await metricResponse.json();
         const yearIndex = metricData.years.indexOf(2024);
@@ -635,7 +635,7 @@
             Complete list of all law enforcement agencies in Missouri with summary statistics.
           </p>
           <a
-            href="/data/agency_index.json"
+            href="/data/dist/agency_index.json"
             download
             class="inline-block rounded-lg bg-[#28AF57] px-6 py-3 font-semibold text-white no-underline transition-colors hover:bg-[#229647]"
           >
@@ -651,7 +651,7 @@
             Raw vehicle stop records by agency and year, including demographics and outcomes.
           </p>
           <a
-            href="/data/agency_index.json"
+            href="/data/dist/agency_index.json"
             download
             class="inline-block rounded-lg border-2 border-[#28AF57] bg-white px-6 py-3 font-semibold text-[#28AF57] no-underline transition-colors hover:bg-green-50"
           >

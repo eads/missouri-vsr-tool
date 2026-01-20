@@ -1092,7 +1092,7 @@
         <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500">
           <a
             class="inline-flex items-center gap-1 underline"
-            href={`/data/agency_year/${data.slug}.json`}
+            href={`/data/dist/agency_year/${data.slug}.json`}
             download
           >
             <span aria-hidden="true">↓</span>
