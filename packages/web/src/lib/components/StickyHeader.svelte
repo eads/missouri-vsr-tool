@@ -119,46 +119,56 @@
         {m.home_header_title()}
       </a>
 
-      <div class="relative w-full md:flex-1 md:max-w-2xl md:mx-auto">
+      <div class="relative w-full md:flex-1 md:max-w-2xl md:mx-auto" role="combobox" aria-expanded={results.length > 0} aria-haspopup="listbox" aria-owns="search-results">
         <input
           type="search"
           placeholder={m.search_placeholder()}
           bind:value={query}
           on:keydown={handleKeydown}
           aria-label={m.search_aria_label()}
+          aria-autocomplete="list"
+          aria-controls="search-results"
+          aria-activedescendant={selectedIndex >= 0 ? `search-result-${selectedIndex}` : undefined}
           autocomplete="off"
           class="w-full rounded-lg border-2 border-[#2c9166] bg-white px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2c9166] focus:ring-offset-1"
         />
-        {#if results.length}
-          <ul class="absolute left-0 right-0 top-full z-50 mt-1 max-h-80 overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
-            {#each results as result, index}
-              {@const slug = toSlug(result.item)}
-              {@const href = slug ? `/agency/${slug}` : "#"}
-              {@const stops = formatStops(toStops(result.item))}
-              <li role="option">
-                <a
-                  {href}
-                  on:click={slug ? resetSearch : undefined}
-                  aria-disabled={!slug}
-                  class="flex flex-col gap-1 px-4 py-2 text-sm text-slate-900 no-underline hover:bg-[#2c9166]/10 {index === selectedIndex ? 'bg-[#2c9166]/10' : ''}"
-                >
-                  <span class="font-semibold text-slate-900">{toLabel(result.item)}</span>
-                  {#if stops || toSubLabel(result.item)}
-                    <span class="flex items-center gap-2 text-xs text-slate-500">
-                      {#if stops}
-                        <span class="font-semibold text-slate-800">{stops} stops</span>
-                      {/if}
-                      {#if toSubLabel(result.item)}
-                        <span class="opacity-60">•</span>
-                        <span>{toSubLabel(result.item)}</span>
-                      {/if}
-                    </span>
-                  {/if}
-                </a>
-              </li>
-            {/each}
-          </ul>
-        {/if}
+        <ul
+          id="search-results"
+          role="listbox"
+          aria-label="Search results"
+          class="absolute left-0 right-0 top-full z-50 mt-1 max-h-80 overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg {results.length ? '' : 'hidden'}"
+        >
+          {#each results as result, index}
+            {@const slug = toSlug(result.item)}
+            {@const href = slug ? `/agency/${slug}` : "#"}
+            {@const stops = formatStops(toStops(result.item))}
+            <li
+              id="search-result-{index}"
+              role="option"
+              aria-selected={index === selectedIndex}
+            >
+              <a
+                {href}
+                on:click={slug ? resetSearch : undefined}
+                tabindex="-1"
+                class="flex flex-col gap-1 px-4 py-2 text-sm text-slate-900 no-underline hover:bg-[#2c9166]/10 {index === selectedIndex ? 'bg-[#2c9166]/10' : ''}"
+              >
+                <span class="font-semibold text-slate-900">{toLabel(result.item)}</span>
+                {#if stops || toSubLabel(result.item)}
+                  <span class="flex items-center gap-2 text-xs text-slate-500">
+                    {#if stops}
+                      <span class="font-semibold text-slate-800">{stops} stops</span>
+                    {/if}
+                    {#if toSubLabel(result.item)}
+                      <span class="opacity-60" aria-hidden="true">•</span>
+                      <span>{toSubLabel(result.item)}</span>
+                    {/if}
+                  </span>
+                {/if}
+              </a>
+            </li>
+          {/each}
+        </ul>
       </div>
 
       <!-- Right: Language switcher + Donate -->
@@ -166,6 +176,7 @@
         <select
           bind:value={currentLocale}
           on:change={handleLocaleChange}
+          aria-label="Select language"
           class="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold uppercase tracking-wide text-slate-700 shadow-sm transition-colors hover:border-[#2c9166] focus:border-[#2c9166] focus:outline-none"
         >
           {#each locales as locale}
