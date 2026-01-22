@@ -9,4 +9,7 @@ node_modules
 build
 dist
 packages/web/static/data/
+!packages/web/static/data/homepage_2024_stats.json
+!packages/web/static/data/dist/
+packages/web/static/data/dist/metric_year_subset.json
 .vscode/
