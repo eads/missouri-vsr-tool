@@ -57,7 +57,7 @@
   const baseRadius = 2.2;
   const minRadius = 0.8;
   const maxRadius = 18;
-  const dotFill = "rgba(204, 209, 216, 0.58)";
+  const dotFill = "rgba(45, 145, 102, 0.70)";
   const dotStroke = "rgba(126, 139, 156, 0.9)";
   const dotStrokeWidth = 0.8;
   const scaledBaseRadius = baseRadius * dotRadiusScale;

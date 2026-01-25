@@ -250,6 +250,9 @@
     const byYear = new Map<number, Map<string, number>>();
     const rowData = payload.rows?.[rowKey];
     if (!Array.isArray(rowData)) return byYear;
+    // Row format: [agency_index, year_index, ...column_values]
+    // So we need to offset by 2 when accessing column values
+    const ROW_DATA_OFFSET = 2;
     const valueIndex = payload.columns.indexOf(columnName);
     const totalIndex = payload.columns.indexOf("Total");
     const whiteIndex = payload.columns.indexOf("White");
@@ -264,16 +267,16 @@
       const year = Number(payload.years?.[yearIndex]);
       let value = NaN;
       if (useNonWhite) {
-        const totalRaw = row[totalIndex];
-        const whiteRaw = row[whiteIndex];
+        const totalRaw = row[totalIndex + ROW_DATA_OFFSET];
+        const whiteRaw = row[whiteIndex + ROW_DATA_OFFSET];
         const totalValue =
           totalRaw === null || totalRaw === undefined ? NaN : Number(totalRaw);
         const whiteValue =
           whiteRaw === null || whiteRaw === undefined ? NaN : Number(whiteRaw);
         value = totalValue - whiteValue;
       } else {
-        if (row.length <= valueIndex) return;
-        const rawValue = row[valueIndex];
+        if (row.length <= valueIndex + ROW_DATA_OFFSET) return;
+        const rawValue = row[valueIndex + ROW_DATA_OFFSET];
         value = rawValue === null || rawValue === undefined ? NaN : Number(rawValue);
       }
       if (!agency || !Number.isFinite(year) || !Number.isFinite(value)) return;
