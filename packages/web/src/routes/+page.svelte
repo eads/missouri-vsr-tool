@@ -209,18 +209,18 @@
 
       <div class="grid gap-5 sm:gap-8 md:grid-cols-2 md:grid-rows-2 md:auto-rows-fr" role="list" aria-label="Data highlights">
         <!-- Box 1: Population vs Stops Comparison -->
-        <article class="rounded-2xl border border-slate-100 bg-white p-5 sm:p-7 flex flex-col h-[380px] sm:h-[420px] shadow-sm hover:shadow-md transition-shadow duration-300" role="listitem" aria-labelledby="box1-title">
-          <div class="mb-3 sm:mb-4">
+        <article class="rounded-3xl border border-slate-200/60 bg-white p-6 sm:p-8 flex flex-col h-[380px] sm:h-[420px] shadow-lg shadow-slate-200/50 hover:shadow-xl hover:shadow-slate-200/60 transition-all duration-300" role="listitem" aria-labelledby="box1-title">
+          <div class="mb-4 sm:mb-5 text-center">
             <h3 id="box1-title" class="text-lg sm:text-xl font-bold text-slate-900">
               Black drivers were 17% of stops, but only 11% of Missouri's population
             </h3>
-            <p class="mt-1 sm:mt-2 text-xs sm:text-sm leading-relaxed text-slate-600">
+            <p class="mt-2 text-xs sm:text-sm leading-relaxed text-slate-600">
               Compare who lives in Missouri vs. who gets stopped by police.
             </p>
           </div>
 
           {#if statsData}
-            {@const raceColors = { White: "#095771", Black: "#2d898b", Hispanic: "#219255", Other: "#94a3b8" }}
+            {@const raceColors = { White: "#5B9BD5", Black: "#2D9166", Hispanic: "#DAA520", Other: "#7C6F64" }}
             {@const population = { White: 79.1, Black: 11.8, Hispanic: 4.4, Other: 4.7 }}
             {@const totalStops = statsData.total_stops}
             {@const stopsData = {
@@ -233,12 +233,12 @@
 
             <div class="flex-1 flex flex-col items-center justify-center space-y-4 w-full">
               <!-- Missouri Population Bar -->
-              <div role="figure" aria-label="Missouri population breakdown by race">
+              <div role="figure" aria-label="Missouri population breakdown by race" class="w-full">
                 <div class="flex items-center justify-between mb-1 sm:mb-2">
                   <span id="pop-bar-label" class="text-xs sm:text-sm font-semibold text-slate-700">Missouri Population</span>
                   <span class="text-[10px] sm:text-xs text-slate-500">6.2M residents</span>
                 </div>
-                <div class="relative h-8 sm:h-10 w-full flex rounded overflow-hidden" role="group" aria-labelledby="pop-bar-label">
+                <div class="relative h-9 sm:h-11 w-full flex rounded-lg overflow-hidden shadow-sm" role="group" aria-labelledby="pop-bar-label">
                   {#each raceOrder as race}
                     {@const width = population[race]}
                     <button
@@ -260,12 +260,12 @@
               </div>
 
               <!-- Traffic Stops Bar -->
-              <div role="figure" aria-label="Traffic stops breakdown by race">
+              <div role="figure" aria-label="Traffic stops breakdown by race" class="w-full">
                 <div class="flex items-center justify-between mb-1 sm:mb-2">
                   <span id="stops-bar-label" class="text-xs sm:text-sm font-semibold text-slate-700">Traffic Stops (2024)</span>
                   <span class="text-[10px] sm:text-xs text-slate-500">{formatStops(totalStops)} stops</span>
                 </div>
-                <div class="relative h-8 sm:h-10 w-full flex rounded overflow-hidden" role="group" aria-labelledby="stops-bar-label">
+                <div class="relative h-9 sm:h-11 w-full flex rounded-lg overflow-hidden shadow-sm" role="group" aria-labelledby="stops-bar-label">
                   {#each raceOrder as race}
                     {@const width = stopsData[race]}
                     <button
@@ -287,7 +287,7 @@
               </div>
 
               <!-- Disparity callout -->
-              <div class="bg-slate-50 rounded p-2 border border-slate-200 text-xs">
+              <div class="w-full bg-green-50/70 rounded-lg p-3 border border-green-200/60 text-xs text-center">
                 <span class="inline-flex items-center gap-1.5">
                   <span class="w-2.5 h-2.5 rounded" style="background-color: {raceColors.Black}"></span>
                   <span class="text-slate-600">Black: <strong class="text-slate-900">{stopsData.Black.toFixed(1)}%</strong> stops vs <strong class="text-slate-900">{population.Black}%</strong> population</span>
@@ -312,17 +312,17 @@
         </article>
 
         <!-- Box 2: Search Rate vs Hit Rate Scatter -->
-        <article class="rounded-2xl border border-slate-100 bg-white p-5 sm:p-7 flex flex-col h-[380px] sm:h-[420px] shadow-sm hover:shadow-md transition-shadow duration-300" role="listitem" aria-labelledby="box2-title">
-          <div class="mb-3 sm:mb-4">
+        <article class="rounded-3xl border border-slate-200/60 bg-gradient-to-br from-white via-white to-green-50/40 p-6 sm:p-8 flex flex-col h-[380px] sm:h-[420px] shadow-lg shadow-slate-200/50 hover:shadow-xl hover:shadow-slate-200/60 transition-all duration-300" role="listitem" aria-labelledby="box2-title">
+          <div class="mb-4 sm:mb-5 text-center">
             <h3 id="box2-title" class="text-lg sm:text-xl font-bold text-slate-900">
               Officers searched 4.8% of stopped drivers, but found contraband in only 1 in 5
             </h3>
-            <p class="mt-1 sm:mt-2 text-xs sm:text-sm leading-relaxed text-slate-600">
+            <p class="mt-2 text-xs sm:text-sm leading-relaxed text-slate-600">
               Each dot is an agency. Higher search rates don't mean more contraband found.
             </p>
           </div>
 
-          <div class="flex-1 flex flex-col items-center justify-center min-h-0 w-full [&>div]:border-0 [&>div]:p-0 [&>div]:bg-transparent [&>div]:rounded-none [&>div]:flex-1 [&>div]:flex [&>div]:flex-col [&>div]:w-full [&>div>div.mb-2]:hidden [&>div>div.mt-1]:hidden [&_div.h-\[280px\]]:h-full [&_div.h-\[280px\]]:flex-1">
+          <div class="flex-1 flex flex-col items-center justify-center min-h-0 w-full rounded-2xl bg-slate-50/50 p-3 [&>div]:border-0 [&>div]:p-0 [&>div]:bg-transparent [&>div]:rounded-none [&>div]:flex-1 [&>div]:flex [&>div]:flex-col [&>div]:w-full [&>div>div.mb-2]:hidden [&>div>div.mt-1]:hidden [&_div.h-\[280px\]]:h-full [&_div.h-\[280px\]]:flex-1">
             <AgencyRateScatter
               selectedYear={2024}
               title=""
@@ -339,26 +339,26 @@
         </article>
 
         <!-- Box 3: Historical Outcomes - Slope Chart -->
-        <article class="rounded-2xl border border-slate-100 bg-white p-5 sm:p-7 flex flex-col h-[380px] sm:h-[420px] shadow-sm hover:shadow-md transition-shadow duration-300" role="listitem" aria-labelledby="box3-title">
-          <div class="mb-3 sm:mb-4">
+        <article class="rounded-3xl border border-slate-200/60 bg-white p-6 sm:p-8 flex flex-col h-[380px] sm:h-[420px] shadow-lg shadow-slate-200/50 hover:shadow-xl hover:shadow-slate-200/60 transition-all duration-300" role="listitem" aria-labelledby="box3-title">
+          <div class="mb-4 sm:mb-5 text-center">
             <h3 id="box3-title" class="text-lg sm:text-xl font-bold text-slate-900">
               About half of all traffic stops result in no formal action
             </h3>
-            <p class="mt-1 sm:mt-2 text-xs sm:text-sm leading-relaxed text-slate-600">
+            <p class="mt-2 text-xs sm:text-sm leading-relaxed text-slate-600">
               Citations are ~40%, while arrests and searches stay below 5%.
             </p>
           </div>
 
           {#if historicalOutcomes && historicalOutcomes.data.length > 0}
-            {@const outcomeColors = { citations: "#095771", arrests: "#2d898b", searches: "#219255", noAction: "#94a3b8" }}
+            {@const outcomeColors = { citations: "#5B9BD5", arrests: "#2D9166", searches: "#DAA520", noAction: "#7C6F64" }}
             {@const outcomeLabels = { citations: "Citations", arrests: "Arrests", searches: "Searches", noAction: "No Action" }}
             {@const maxY = Math.ceil(Math.max(...historicalOutcomes.data.flatMap(d => [d.citations, d.arrests, d.searches, d.noAction])) / 10) * 10}
             {@const years = historicalOutcomes.years}
-            {@const padding = { top: 15, right: 20, bottom: 30, left: 45 }}
-            {@const width = 220}
-            {@const height = 120}
+            {@const padding = { top: 15, right: 25, bottom: 30, left: 45 }}
+            {@const width = 280}
+            {@const height = 140}
             <div class="flex-1 flex flex-col items-center justify-center min-h-0 w-full">
-              <svg viewBox="0 0 {width + padding.left + padding.right} {height + padding.top + padding.bottom}" class="w-full max-w-xs flex-1" preserveAspectRatio="xMidYMid meet" role="img" aria-labelledby="outcomes-chart-title outcomes-chart-desc">
+              <svg viewBox="0 0 {width + padding.left + padding.right} {height + padding.top + padding.bottom}" class="w-full h-full flex-1" preserveAspectRatio="xMidYMid meet" role="img" aria-labelledby="outcomes-chart-title outcomes-chart-desc">
                 <title id="outcomes-chart-title">Traffic Stop Outcomes Over Time</title>
                 <desc id="outcomes-chart-desc">Line chart showing percentage of traffic stops resulting in citations (approximately 40%), arrests, searches (both below 5%), and no action (approximately 50%) from {years[0]} to {years[years.length - 1]}.</desc>
 
@@ -387,7 +387,9 @@
                   <polyline
                     fill="none"
                     stroke={outcomeColors[outcome]}
-                    stroke-width="2"
+                    stroke-width="2.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
                     points={historicalOutcomes.data.map((d, i) => `${padding.left + (i / (years.length - 1)) * width},${padding.top + (1 - d[outcome] / maxY) * height}`).join(" ")}
                     aria-hidden="true"
                   />
@@ -396,9 +398,11 @@
                     <circle
                       cx={padding.left + (i / (years.length - 1)) * width}
                       cy={padding.top + (1 - d[outcome] / maxY) * height}
-                      r="4"
+                      r="5"
                       fill={outcomeColors[outcome]}
-                      class="cursor-pointer hover:opacity-70 focus:opacity-70 transition-opacity outline-none"
+                      stroke="white"
+                      stroke-width="1.5"
+                      class="cursor-pointer hover:opacity-80 focus:opacity-80 transition-all outline-none drop-shadow-sm"
                       style="outline: none;"
                       tabindex="0"
                       on:mouseenter={(e) => showTooltip(e, `${outcomeLabels[outcome]}: ${Math.round(d[outcome])}% (${d.year})`)}
@@ -431,26 +435,26 @@
         </article>
 
         <!-- Box 4: Historical Stops by Race - Stacked Column Chart -->
-        <article class="rounded-2xl border border-slate-100 bg-white p-5 sm:p-7 flex flex-col h-[380px] sm:h-[420px] shadow-sm hover:shadow-md transition-shadow duration-300" role="listitem" aria-labelledby="box4-title">
-          <div class="mb-3 sm:mb-4">
+        <article class="rounded-3xl border border-slate-200/60 bg-white p-6 sm:p-8 flex flex-col h-[380px] sm:h-[420px] shadow-lg shadow-slate-200/50 hover:shadow-xl hover:shadow-slate-200/60 transition-all duration-300" role="listitem" aria-labelledby="box4-title">
+          <div class="mb-4 sm:mb-5 text-center">
             <h3 id="box4-title" class="text-lg sm:text-xl font-bold text-slate-900">
               Racial breakdown of stops has stayed stable over time
             </h3>
-            <p class="mt-1 sm:mt-2 text-xs sm:text-sm leading-relaxed text-slate-600">
+            <p class="mt-2 text-xs sm:text-sm leading-relaxed text-slate-600">
               Black drivers consistently represent 17% despite being 11% of population.
             </p>
           </div>
 
           {#if historicalByRace && historicalByRace.data.length > 0}
-            {@const raceColors = { White: "#095771", Black: "#2d898b", Hispanic: "#219255", Other: "#94a3b8" }}
+            {@const raceColors = { White: "#5B9BD5", Black: "#2D9166", Hispanic: "#DAA520", Other: "#7C6F64" }}
             {@const raceOrder = ["White", "Black", "Hispanic", "Other"]}
             {@const years = historicalByRace.years}
-            {@const padding = { top: 15, right: 20, bottom: 30, left: 45 }}
-            {@const width = 220}
-            {@const height = 120}
-            {@const barWidth = (width - (years.length - 1) * 12) / years.length}
+            {@const padding = { top: 15, right: 25, bottom: 30, left: 45 }}
+            {@const width = 280}
+            {@const height = 140}
+            {@const barWidth = (width - (years.length - 1) * 14) / years.length}
             <div class="flex-1 flex flex-col items-center justify-center min-h-0 w-full">
-              <svg viewBox="0 0 {width + padding.left + padding.right} {height + padding.top + padding.bottom}" class="w-full max-w-xs flex-1" preserveAspectRatio="xMidYMid meet" role="img" aria-labelledby="race-chart-title race-chart-desc">
+              <svg viewBox="0 0 {width + padding.left + padding.right} {height + padding.top + padding.bottom}" class="w-full h-full flex-1" preserveAspectRatio="xMidYMid meet" role="img" aria-labelledby="race-chart-title race-chart-desc">
                 <title id="race-chart-title">Racial Breakdown of Traffic Stops Over Time</title>
                 <desc id="race-chart-desc">Stacked bar chart showing the racial composition of traffic stops from {years[0]} to {years[years.length - 1]}. Black drivers consistently represent approximately 17% of stops despite being 11% of Missouri's population.</desc>
 
@@ -470,7 +474,7 @@
 
                 <!-- Stacked bars for each year -->
                 {#each historicalByRace.data as d, i}
-                  {@const barX = padding.left + i * (barWidth + 12)}
+                  {@const barX = padding.left + i * (barWidth + 14)}
                   {@const segments = []}
                   {#each raceOrder as race, raceIdx}
                     {@const prevTotal = raceOrder.slice(0, raceIdx).reduce((sum, r) => sum + (d[r] || 0), 0)}
@@ -481,8 +485,9 @@
                       y={segmentY}
                       width={barWidth}
                       height={segmentHeight}
+                      rx="2"
                       fill={raceColors[race]}
-                      class="cursor-pointer hover:opacity-70 focus:opacity-70 transition-opacity outline-none"
+                      class="cursor-pointer hover:opacity-80 focus:opacity-80 transition-opacity outline-none"
                       tabindex="0"
                       on:mouseenter={(e) => showTooltip(e, `${race}: ${Math.round(d[race])}% (${d.year})`)}
                       on:mouseleave={hideTooltip}
