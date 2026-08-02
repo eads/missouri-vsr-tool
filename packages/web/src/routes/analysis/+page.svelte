@@ -12,6 +12,9 @@
   $: localeBase = locales.includes(currentLocale) ? `/${currentLocale}` : "/en";
   $: articles = publishedArticles();
 
+  const siteUrl = import.meta.env.PUBLIC_SITE_URL ?? "https://vsr.recoveredfactory.net";
+  $: canonicalUrl = `${siteUrl}${localeBase}/analysis`;
+
   const fmtDate = (iso, locale) =>
     new Date(iso + "T00:00:00").toLocaleDateString(locale === "es" ? "es" : "en-US", {
       year: "numeric",
@@ -23,6 +26,11 @@
 <svelte:head>
   <title>{analysis_index_title()}</title>
   <meta name="description" content={analysis_index_intro()} />
+  <link rel="canonical" href={canonicalUrl} />
+  <link rel="alternate" hreflang="en" href="{siteUrl}/en/analysis" />
+  <link rel="alternate" hreflang="es" href="{siteUrl}/es/analysis" />
+  <link rel="alternate" hreflang="x-default" href="{siteUrl}/en/analysis" />
+  <meta property="og:url" content={canonicalUrl} />
 </svelte:head>
 
 <StickyHeader />
