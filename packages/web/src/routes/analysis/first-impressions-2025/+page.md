@@ -75,8 +75,9 @@ authors:
 <svelte:head>
   <title>First impressions of the 2025 Missouri Vehicle Stops Report</title>
   <meta name="description" content={metaDescription} />
+  <link rel="canonical" href="{siteUrl}/en/analysis/first-impressions-2025" />
   <meta property="og:type" content="article" />
-  <meta property="og:url" content="{siteUrl}/analysis/first-impressions-2025" />
+  <meta property="og:url" content="{siteUrl}/en/analysis/first-impressions-2025" />
   <meta property="og:title" content="First impressions of the 2025 Missouri Vehicle Stops Report" />
   <meta property="og:description" content={metaDescription} />
   <meta property="og:image" content={ogImage} />
