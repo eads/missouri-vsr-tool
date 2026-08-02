@@ -1,6 +1,7 @@
 import { redirect } from "@sveltejs/kit";
 import { env } from "$env/dynamic/private";
 import { extractLocaleFromHeader } from "$lib/paraglide/runtime";
+import { paraglideMiddleware } from "$lib/paraglide/server";
 import { GATE_COOKIE, isGateOpen } from "$lib/server/gate";
 
 // Top-level paths that are NOT locale-prefixed pages — endpoints, static
@@ -64,8 +65,18 @@ export const handle = async ({ event, resolve }) => {
     throw redirect(307, `/${locale}${pathname}${search}`);
   }
 
-  const locale = firstSegment === "es" ? "es" : "en";
+  // Locale-prefixed pages must render through the Paraglide middleware —
+  // without it, server-side getLocale() is stuck on "en" and every /es page
+  // SSRs as an English duplicate whose canonical points at /en.
+  if (firstSegment === "en" || firstSegment === "es") {
+    return paraglideMiddleware(event.request, ({ request, locale }) => {
+      event.request = request;
+      return resolve(event, {
+        transformPageChunk: ({ html }) => html.replace("%lang%", locale),
+      });
+    });
+  }
   return resolve(event, {
-    transformPageChunk: ({ html }) => html.replace("%lang%", locale),
+    transformPageChunk: ({ html }) => html.replace("%lang%", "en"),
   });
 };
