@@ -1,3 +1,5 @@
+import { publishedArticles } from "$lib/analysis/articles";
+
 const BASE_URL = import.meta.env.PUBLIC_SITE_URL || "https://vsr.recoveredfactory.net";
 const LOCALES = ["en", "es"];
 
@@ -34,6 +36,14 @@ ${xDefault}
   ).join("\n");
 }
 
+// English-only pages (untranslated articles) get a single /en <loc> with no
+// hreflang cluster — the /es URL canonicalizes to /en and isn't listed.
+function enOnlyEntry(path, lastmod) {
+  return `  <url>
+    <loc>${xmlEscape(locUrl("en", path))}</loc>
+${lastmod ? `    <lastmod>${lastmod}</lastmod>\n` : ""}  </url>`;
+}
+
 // Best-effort: pull a site-wide lastmod from the data manifest. Falls back
 // to nothing rather than a misleading current-day stamp.
 async function fetchLastmod(fetch) {
@@ -59,7 +69,11 @@ export async function GET({ fetch }) {
   ]);
   const agencies = agenciesRes.ok ? await agenciesRes.json() : [];
 
-  const entries = [urlEntry("/", lastmod), urlEntry("/287g", lastmod)];
+  const entries = [urlEntry("/", lastmod), urlEntry("/287g", lastmod), urlEntry("/analysis", lastmod)];
+  for (const article of publishedArticles()) {
+    const path = `/analysis/${article.slug}`;
+    entries.push(article.hasSpanish ? urlEntry(path, article.date) : enOnlyEntry(path, article.date));
+  }
   for (const agency of agencies) {
     if (agency.agency_slug) {
       entries.push(urlEntry(`/agency/${agency.agency_slug}`, lastmod));
