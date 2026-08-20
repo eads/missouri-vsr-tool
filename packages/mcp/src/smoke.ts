@@ -68,7 +68,7 @@ const cases: Array<[string, object]> = [
     },
   ],
   [
-    "tools/call agency_summary missouri-state-hwy-patrol",
+    "tools/call agency_summary missouri-state-highway-patrol",
     {
       jsonrpc: "2.0",
       id: 9,

@@ -223,8 +223,11 @@ export const getAgencyDemographics = async (
   const rows = reader.getRows();
   if (rows.length === 0) return null;
   const canonical = String(normalize(rows[0][0]));
-  const latest = Number(normalize(rows[0][1]));
-  if (!Number.isFinite(latest)) return null;
+  // `Number(null)` is 0 — be explicit so a blank latest_year_with_data
+  // doesn't turn into a fetch for ".../0.json" (#219).
+  const rawLatest = normalize(rows[0][1]);
+  const latest = rawLatest === null || rawLatest === undefined ? NaN : Number(rawLatest);
+  if (!Number.isFinite(latest) || latest <= 0) return null;
   return loadDemographics(slug, canonical, latest);
 };
 

@@ -350,6 +350,45 @@ const init = async (): Promise<DuckDBConnection> => {
   await conn.run("CREATE INDEX ays_slug_year ON agency_year_stops (agency_slug, year)");
   await conn.run("CREATE INDEX ays_year ON agency_year_stops (year)");
 
+  // Backfill `years_with_data` / `latest_year_with_data` for any agency the
+  // pipeline left blank. The statewide rollup ships with `years_with_data:
+  // []` and `latest_year_with_data: null` even though it has stops rows for
+  // every year; per-agency default windows (agency_summary, stop_share_vs_
+  // population_share, agency_demographics) key off these fields, and
+  // `Number(null)` is 0, so the rollup's default window collapsed to
+  // [2021, 0] and returned nothing (#219). Derive the fields empirically
+  // from the stops table so every agency row carries real coverage.
+  await conn.run(
+    `UPDATE agencies a
+     SET years_with_data = t.yrs,
+         latest_year_with_data = t.latest
+     FROM (
+       SELECT agency_slug,
+              list(year ORDER BY year)::BIGINT[] AS yrs,
+              MAX(year)::BIGINT AS latest
+       FROM agency_year_stops
+       WHERE total_stops > 0
+       GROUP BY agency_slug
+     ) t
+     WHERE t.agency_slug = a.agency_slug
+       AND (a.latest_year_with_data IS NULL
+            OR a.years_with_data IS NULL
+            OR len(a.years_with_data) = 0)`,
+  );
+
+  // The pipeline emits disparity-index rows for the rollup by SUMMING every
+  // agency's per-agency index — e.g. 2021 White 511.4 / Black 2222.4 is the
+  // sum of ~500 agency ratios (white ≈ 1.0 each). A sum of ratios is not a
+  // ratio, not a rate, not anything; and the population sub-rows double-
+  // count overlapping jurisdictions (city + county + MSHP). Drop the whole
+  // family for the rollup so no tool can surface it as "1.0 = parity" (#219).
+  // Done before scanMetricCoverage so the coverage stats don't count it.
+  await conn.run(
+    `DELETE FROM stops
+     WHERE agency_slug = '${STATEWIDE_ROLLUP_SLUG}'
+       AND metric LIKE 'disparity-index--%'`,
+  );
+
   // One-shot empirical scan: which canonical_keys are present, what years
   // each one covers, which race columns are populated. Cached for the
   // Lambda lifetime; consumed by list_metrics and query_metric.

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { getDb } from "../db.js";
+import { getDb, getLatestYearWithData } from "../db.js";
 import { normalize } from "../duckutil.js";
 import { linreg } from "../stats.js";
 import { defaultWindow, yearRangeWarnings } from "../year-range.js";
@@ -158,16 +158,18 @@ const trendHandler = async (raw: unknown) => {
 
   const spec = METRICS[args.metric];
   const minSample = args.min_sample_size_per_year ?? spec.defaultMinSamplePerYear;
-  // Default window is 4 years (2021–2024). Default min_years drops in lockstep
+  // Default window is the 4 most recent years in the loaded release, floored
+  // at 2021. Default min_years drops in lockstep
   // so the default response isn't empty after the 2020 floor; callers who
   // explicitly request a wider year_range can raise min_years to match.
   const limit = args.limit ?? 50;
   const sortBy = args.sort_by ?? "slope";
+  const latestYear = await getLatestYearWithData();
 
   const [start, end] = (() => {
     if (args.year_range) return args.year_range;
     const win = args.window_years ?? 4;
-    return defaultWindow(2024, win);
+    return defaultWindow(latestYear, win);
   })();
   const minYears = args.min_years ?? Math.min(4, end - start + 1);
 
@@ -326,7 +328,7 @@ const trendHandler = async (raw: unknown) => {
 
 registerTool({
   name: "trend",
-  description: `Fits a linear OLS regression of yearly metric values against year, per agency, over a configurable window. Returns slope (units per year), 95% CI, two-sided p-value, n_years, and mean per-year sample size for each agency. Available metrics: ${Object.keys(METRICS).join(", ")}. Years where the per-year sample falls below the metric's threshold are dropped. Agencies with fewer than min_years qualifying years are dropped. Sort by slope (default), absolute_slope, or p_value. Defaults to the last 4 years (2021–2024); 2020 is excluded by default because the AG's published 2020 data has unreconciled anomalies — pass year_range=[2020, 2024] explicitly to include it, with a warning.`,
+  description: `Fits a linear OLS regression of yearly metric values against year, per agency, over a configurable window. Returns slope (units per year), 95% CI, two-sided p-value, n_years, and mean per-year sample size for each agency. Available metrics: ${Object.keys(METRICS).join(", ")}. Years where the per-year sample falls below the metric's threshold are dropped. Agencies with fewer than min_years qualifying years are dropped. Sort by slope (default), absolute_slope, or p_value. Defaults to the 4 most recent years in the loaded release (e.g. 2022–2025); 2020 is excluded by default because the AG's published 2020 data has unreconciled anomalies — pass a year_range starting at 2020 explicitly to include it, with a warning.`,
   inputSchema: inputSchemaFromZod(TrendInput),
   handler: trendHandler,
 });

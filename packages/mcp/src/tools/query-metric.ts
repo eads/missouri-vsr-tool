@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { getDb, getMetricCoverage } from "../db.js";
+import { getDb, getLatestYearWithData, getMetricCoverage } from "../db.js";
 import { normalize } from "../duckutil.js";
 import { yearRangeWarnings } from "../year-range.js";
 import {
@@ -140,10 +140,11 @@ const handler = async (raw: unknown) => {
     );
   }
 
+  const latestYear = await getLatestYearWithData();
   const [yearMin, yearMax] = (() => {
     if (args.year_range) return args.year_range;
     const yrs = meta.years_present;
-    if (yrs.length === 0) return [2020, 2024] as [number, number];
+    if (yrs.length === 0) return [2020, latestYear] as [number, number];
     return [yrs[0], yrs[yrs.length - 1]] as [number, number];
   })();
 

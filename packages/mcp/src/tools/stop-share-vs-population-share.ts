@@ -1,8 +1,8 @@
 import { z } from "zod";
 
-import { getDb } from "../db.js";
+import { getDb, getLatestYearWithData } from "../db.js";
 import { normalize } from "../duckutil.js";
-import { PROBLEMATIC_YEAR_FLOOR, yearRangeWarnings } from "../year-range.js";
+import { defaultWindow, yearRangeWarnings } from "../year-range.js";
 import { getAgencyDemographics } from "./agency-demographics.js";
 import { RESEARCH_PROMPT } from "./caveats.js";
 import {
@@ -73,18 +73,19 @@ const handler = async (raw: unknown) => {
   aCols.forEach((c, i) => {
     aMeta[c] = normalize(aRows[0][i]);
   });
-  const latestYear = Number(aMeta.latest_year_with_data);
+  // Guard against a null latest_year_with_data: `Number(null)` is 0, which
+  // is finite, and a [2021, 0] window silently returns nothing (#219).
+  const rawLatest = aMeta.latest_year_with_data;
+  const latestYear =
+    rawLatest !== null && rawLatest !== undefined && Number(rawLatest) > 0
+      ? Number(rawLatest)
+      : null;
 
-  const [startYear, endYear] = (() => {
+  const [startYear, endYear] = await (async () => {
     if (args.year_range) return args.year_range;
-    if (Number.isFinite(latestYear)) {
-      // Four most recent years, floored at PROBLEMATIC_YEAR_FLOOR (2021).
-      return [
-        Math.max(PROBLEMATIC_YEAR_FLOOR, latestYear - 3),
-        latestYear,
-      ] as [number, number];
-    }
-    return [PROBLEMATIC_YEAR_FLOOR, 2024] as [number, number];
+    // Four most recent years, floored at PROBLEMATIC_YEAR_FLOOR (2021).
+    const end = latestYear ?? (await getLatestYearWithData());
+    return defaultWindow(end, 4);
   })();
 
   // Pull the agency's stops by race, summed across the window.

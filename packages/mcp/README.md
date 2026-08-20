@@ -12,7 +12,11 @@ https://d1w5qatcgl0dry.cloudfront.net/
 
 (Staging — this is what's live as of the latest deploy. A production endpoint at `mcp.vsr.recoveredfactory.net` is planned; for now use the CloudFront URL.)
 
-### Claude Desktop (Mac/Windows)
+### Claude.ai / Claude Desktop — custom connector (easiest)
+
+Settings → Connectors → **Add custom connector** → paste the URL above. Leave the OAuth client ID / secret fields blank — the server has **no authentication**. The same connector shows up in both claude.ai and the desktop app. (If Desktop ever complains about missing auth details, it means the server answered an OAuth-discovery probe with something other than a 404 — see #219.)
+
+### Claude Desktop via `mcp-remote` (stdio bridge)
 
 Add to `~/Library/Application Support/Claude/claude_desktop_config.json` on macOS, or `%APPDATA%\Claude\claude_desktop_config.json` on Windows:
 
@@ -122,7 +126,7 @@ Identical to what `read_methodology` returns at runtime. Reproduced here for off
 
 ## Rate limits
 
-Public endpoint, no auth. AWS WAF rate-based rule: **~3,000 requests per 5-minute window per IP** (≈10/s sustained). Excess requests get a 403. If you have a legitimate use case that needs higher limits, [open an issue](https://github.com/recoveredfactory/missouri-vsr-tool/issues/new) — we can issue a higher tier or share a snapshot for offline use.
+Public endpoint, no auth. AWS WAF rate-based rule: **600 requests per 5-minute window per IP** (≈2/s sustained). Excess requests get a 403. If you have a legitimate use case that needs higher limits, [open an issue](https://github.com/recoveredfactory/missouri-vsr-tool/issues/new) — we can issue a higher tier or share a snapshot for offline use.
 
 ## Architecture (text diagram)
 
