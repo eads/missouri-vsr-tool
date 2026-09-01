@@ -376,6 +376,27 @@ const init = async (): Promise<DuckDBConnection> => {
             OR len(a.years_with_data) = 0)`,
   );
 
+  // Same gap on `latest_year_stops` (the pipeline's `all_stops_total`): blank
+  // for the rollup, so agency_summary and list_agencies reported a null stop
+  // count next to a populated lifetime_stops. Derive it from the same table
+  // the coverage backfill above uses (#221).
+  await conn.run(
+    `UPDATE agencies a
+     SET latest_year_stops = t.stops
+     FROM (
+       SELECT s.agency_slug, s.total_stops AS stops
+       FROM agency_year_stops s
+       INNER JOIN (
+         SELECT agency_slug, MAX(year) AS latest
+         FROM agency_year_stops
+         WHERE total_stops > 0
+         GROUP BY agency_slug
+       ) m ON m.agency_slug = s.agency_slug AND m.latest = s.year
+     ) t
+     WHERE t.agency_slug = a.agency_slug
+       AND a.latest_year_stops IS NULL`,
+  );
+
   // The pipeline emits disparity-index rows for the rollup by SUMMING every
   // agency's per-agency index — e.g. 2021 White 511.4 / Black 2222.4 is the
   // sum of ~500 agency ratios (white ≈ 1.0 each). A sum of ratios is not a

@@ -10,6 +10,7 @@ import {
   buildLowVolumeSummary,
   flagsFor,
 } from "./caveats.js";
+import { diagnoseEmptyResult } from "./empty-result.js";
 import { findIssuesFor } from "./known-issues.js";
 import {
   errorResult,
@@ -269,6 +270,15 @@ const distributionHandler = async (raw: unknown) => {
   });
 
   if (rows.length === 0) {
+    // The old note asserted a sample-size cause and told the caller to lower
+    // min_sample_size — advice that can never work when the real problem is
+    // that the metric has no rows in the requested years (#221).
+    const emptyResultReason = await diagnoseEmptyResult(spec.coverageKeys, [start, end], {
+      min_sample_size: minSample,
+      min_total_stops: minTotalStops,
+      county: args.county ?? null,
+      agency_type: args.agency_type ?? null,
+    });
     return textResult(
       JSON.stringify(
         {
@@ -276,7 +286,8 @@ const distributionHandler = async (raw: unknown) => {
           year_range: [start, end],
           min_sample_size: minSample,
           n_agencies: 0,
-          note: "No agencies met the sample-size threshold under the requested filters. Lower min_sample_size or widen the year window if you need a result.",
+          empty_result_reason: emptyResultReason,
+          note: emptyResultReason.explanation,
           summary: null,
           histogram: { bin_edges: [], bins: [] },
           values: [],
