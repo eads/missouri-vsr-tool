@@ -28,6 +28,16 @@ When a tool response includes a \`method_explainer\` field, **surface it to the 
 
 There is **no raw SQL access**. Every analytical path goes through a curated tool with a documented methodology. If a question cannot be answered by an existing tool, say so plainly — do not approximate by combining unrelated tool outputs, and do not invent a metric definition the dataset does not support.
 
+## Statewide numbers — never average agencies
+
+A statewide rate is SUM(numerator) / SUM(denominator) across every filing. It is **never** the mean or median of per-agency values — an unweighted average weights a 300-stop department the same as the Highway Patrol. The pipeline has already computed the statewide figure as a pseudo-agency, \`missouri-all-agencies\` ("Missouri (all agencies)"):
+
+- \`agency_summary(agency_id="missouri-all-agencies")\` — statewide counts and rates by race for the window.
+- \`disparity()\` with no \`agency_slug\` — the statewide outcome test.
+- \`top_n_by\`, \`distribution\`, and \`compare\` each return a \`statewide_reference\` block with the rollup's value for the same metric and window. Quote that as "statewide"; the \`median\` / \`mean\` in those responses describe the typical *agency*.
+
+The rollup is excluded from rankings, medians, and distributions by default (it is not a peer), and it has no disparity index (a sum of ratios is not a ratio). The same rule holds within one agency across years: don't average annual rates — pass a \`year_range\` and let the tool pool the counts.
+
 ## Sample sizes
 
 Every tool returns sample sizes alongside its numeric outputs, and refuses to compute rates for groups below documented minimums (reported as "insufficient data"). Respect those signals in your responses — do not paper over them.

@@ -81,3 +81,22 @@ export const RESEARCH_PROMPT = [
   "",
   "DO NOT INVENT specific headlines, URLs, paper titles, quotes, or incident details. A handful of verified sources beats a long list of plausible-sounding fabrications. If you can't verify a claim, name what you can't verify rather than papering over it.",
 ].join("\n");
+
+// Attached to every response that returns per-agency values. The failure
+// mode this guards against: the model averages the per-agency numbers it
+// was handed and reports the result as "Missouri's rate". A statewide rate
+// is SUM(numerator)/SUM(denominator) — stop-weighted by construction — and
+// the pipeline already computed it as the 'missouri-all-agencies' rollup
+// row. Responses that can also carry the rollup's value for the same
+// metric/window do so in a `statewide_reference` block (#223).
+export const STATEWIDE_AGGREGATION_RULE = [
+  "The per-agency values in this response describe agencies, not Missouri.",
+  "Do NOT average them (mean OR median) and report the result as a statewide rate — an unweighted average of agency rates weights a 300-stop department the same as MSHP.",
+  "A statewide rate is SUM(numerator) / SUM(denominator) across every filing, and the pipeline has already computed it: use the statewide_reference block in this response when present, agency_summary(agency_id='missouri-all-agencies') for the full rate table, or disparity() with no agency_slug for the outcome test.",
+  "The same rule applies within one agency across years: never average annual rates — the multi-year figure is the pooled SUM/SUM that top_n_by, compare, and agency_summary return for a year_range.",
+].join(" ");
+
+// What the statewide_reference block says about itself. Kept as one string so
+// top_n_by / distribution / compare describe the rollup identically.
+export const STATEWIDE_REFERENCE_NOTE =
+  "SUM(numerator) / SUM(denominator) over the same metric and year window, read from the pre-computed 'Missouri (all agencies)' rollup (slug missouri-all-agencies), which is every reporting agency's filing added together. This is the number to quote as 'statewide'. It ignores any county / agency_type / volume filters on this call — it is Missouri, not the filtered subset. Null means the rollup has no value for this metric (e.g. the disparity index, which is dropped for the rollup because a sum of ratios is not a ratio).";

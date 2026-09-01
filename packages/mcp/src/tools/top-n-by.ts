@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { getDb, getLatestYearWithData } from "../db.js";
+import { STATEWIDE_ROLLUP_SLUG, getDb, getLatestYearWithData } from "../db.js";
 import { normalize } from "../duckutil.js";
 import { yearRangeWarnings } from "../year-range.js";
 import {
@@ -8,6 +8,8 @@ import {
   MIN_TOTAL_STOPS_DESCRIPTION,
   RANKING_CAVEAT,
   RESEARCH_PROMPT,
+  STATEWIDE_AGGREGATION_RULE,
+  STATEWIDE_REFERENCE_NOTE,
   buildLowVolumeSummary,
   flagsFor,
 } from "./caveats.js";
@@ -235,6 +237,55 @@ WITH agg AS (
     valueExpr: "100 * numerator / NULLIF(denominator, 0)",
     secondarySample: "numerator",
   },
+};
+
+export interface StatewideReference {
+  agency_slug: string;
+  value: number | null;
+  sample_size: number | null;
+  sample_size_field: string;
+  note: string;
+}
+
+// The rollup's value for the same metric + window, so a ranking or
+// distribution response carries the correct statewide figure alongside the
+// per-agency ones (#223). Runs the metric's own CTE restricted to the rollup
+// slug, so numerator / denominator semantics match the per-agency rows
+// exactly. Returns value null when the rollup has no rows for the metric
+// (the disparity-index family is dropped for it at boot).
+export const statewideReference = async (
+  spec: MetricSpec,
+  start: number,
+  end: number,
+): Promise<StatewideReference> => {
+  const cte = spec
+    .cte(`AND a.agency_slug = '${STATEWIDE_ROLLUP_SLUG}'`)
+    .replace(/\$start/g, String(start))
+    .replace(/\$end/g, String(end));
+  const sql = `${cte}
+    SELECT (${spec.valueExpr}) AS value, w.${spec.sampleField} AS sample_size
+    FROM agg w`;
+  const conn = await getDb();
+  const reader = await conn.runAndReadAll(sql);
+  const cols = reader.columnNames();
+  const rows = reader.getRows();
+  let value: number | null = null;
+  let sampleSize: number | null = null;
+  if (rows.length > 0) {
+    const o: Record<string, unknown> = {};
+    cols.forEach((c, i) => (o[c] = normalize(rows[0][i])));
+    const v = Number(o.value);
+    value = o.value !== null && Number.isFinite(v) ? v : null;
+    const n = Number(o.sample_size);
+    sampleSize = o.sample_size !== null && Number.isFinite(n) ? n : null;
+  }
+  return {
+    agency_slug: STATEWIDE_ROLLUP_SLUG,
+    value,
+    sample_size: sampleSize,
+    sample_size_field: spec.sampleField,
+    note: STATEWIDE_REFERENCE_NOTE,
+  };
 };
 
 // Plain-English, link-bearing version of the per-metric explanation.
@@ -497,6 +548,8 @@ const topNByHandler = async (raw: unknown) => {
         })
       : null;
 
+  const statewide = await statewideReference(spec, start, end);
+
   const payload = {
     metric: metricKey,
     direction: args.ascending ? "ascending" : "descending",
@@ -537,6 +590,8 @@ const topNByHandler = async (raw: unknown) => {
       n: args.n === undefined,
     },
     low_volume_warning_summary: lowVolumeSummary,
+    statewide_reference: statewide,
+    aggregation_rule: STATEWIDE_AGGREGATION_RULE,
     ranking_caveat: RANKING_CAVEAT,
     further_research_prompt: RESEARCH_PROMPT,
     results: data,

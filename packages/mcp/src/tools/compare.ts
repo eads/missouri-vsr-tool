@@ -3,7 +3,11 @@ import { z } from "zod";
 import { getDb, getLatestYearWithData, STATEWIDE_ROLLUP_SLUG } from "../db.js";
 import { normalize } from "../duckutil.js";
 import { yearRangeWarnings } from "../year-range.js";
-import { RESEARCH_PROMPT } from "./caveats.js";
+import {
+  RESEARCH_PROMPT,
+  STATEWIDE_AGGREGATION_RULE,
+  STATEWIDE_REFERENCE_NOTE,
+} from "./caveats.js";
 import { findIssuesForAgency } from "./known-issues.js";
 import { errorResult, inputSchemaFromZod, registerTool, textResult } from "./registry.js";
 
@@ -215,10 +219,21 @@ const compareHandler = async (raw: unknown) => {
     statewide_median: {
       value: median,
       based_on_n_agencies: eligible.length,
-      note: "Median of all agencies in the dataset that had any data for this metric in the window. Not weighted by stop volume.",
+      note: "Median of all agencies in the dataset that had any data for this metric in the window. Not weighted by stop volume — this is the middle AGENCY, not Missouri's rate. For the statewide figure use statewide_reference.",
     },
+    statewide_reference: (() => {
+      const r = lookup.get(STATEWIDE_ROLLUP_SLUG);
+      return {
+        agency_slug: STATEWIDE_ROLLUP_SLUG,
+        value: r?.value ?? null,
+        sample_size: r?.sample_size ?? null,
+        sample_size_label: spec.sample_label,
+        note: STATEWIDE_REFERENCE_NOTE,
+      };
+    })(),
+    aggregation_rule: STATEWIDE_AGGREGATION_RULE,
     method_explainer:
-      "Plain English (surface this BEFORE the numbers): a side-by-side row for each agency you asked about, plus a statewide-median row for context. The median row uses all agencies that had data for this metric — it's the middle of the field, not the average. A value above the median means the agency is in the upper half of Missouri agencies on this measure; below means lower half. That's a position, not a verdict. Rate metrics are per 100 stops (not percentages, can exceed 100); the disparity index is a ratio vs. the white baseline (1.0 = parity). Further reading: call read_methodology() for how to interpret the specific metric you chose.",
+      "Plain English (surface this BEFORE the numbers): a side-by-side row for each agency you asked about, plus a statewide-median row and a statewide_reference block (the pooled all-Missouri value from the rollup) for context. Quote statewide_reference — not the median, not an average of the rows — as Missouri's figure. The median row uses all agencies that had data for this metric — it's the middle of the field, not the average. A value above the median means the agency is in the upper half of Missouri agencies on this measure; below means lower half. That's a position, not a verdict. Rate metrics are per 100 stops (not percentages, can exceed 100); the disparity index is a ratio vs. the white baseline (1.0 = parity). Further reading: call read_methodology() for how to interpret the specific metric you chose.",
     requested_agencies: rows,
     further_research_prompt: RESEARCH_PROMPT,
   };
@@ -228,7 +243,7 @@ const compareHandler = async (raw: unknown) => {
 
 registerTool({
   name: "compare",
-  description: `Side-by-side comparison of a named metric across up to 20 specified agencies, with an implicit statewide-median row for context. Available metrics: ${Object.keys(METRICS).join(", ")}. Each agency row includes the metric value, the gating sample size (so the reader can spot thin denominators), and the percent difference vs. the statewide median. Use list_agencies to resolve names into slugs first.`,
+  description: `Side-by-side comparison of a named metric across up to 20 specified agencies, with an implicit statewide-median row and the pooled statewide rollup value (statewide_reference) for context. Available metrics: ${Object.keys(METRICS).join(", ")}. Each agency row includes the metric value, the gating sample size (so the reader can spot thin denominators), and the percent difference vs. the statewide median. Use list_agencies to resolve names into slugs first.`,
   inputSchema: inputSchemaFromZod(CompareInput),
   handler: compareHandler,
 });

@@ -23,6 +23,19 @@ This server's tool surface splits along one axis. **Know which side you're on be
 
 Why the split: cross-metric and cross-year derivations are where it's easy to invent something the data doesn't support (e.g. averaging pre-computed rates across years, or comparing a 0–1 decimal to a 0–100 percentage). Raw reads can't do that — the number is the number the agency filed.
 
+### Statewide numbers — never average agencies
+
+A statewide rate is **SUM(numerator) / SUM(denominator)** across every filing — stop-weighted by construction. It is **never** the mean or median of per-agency values: an unweighted average weights a 300-stop department the same as the Highway Patrol, and the result is not anyone's rate. The same holds within one agency across years — do not average annual rates; pass a \`year_range\` and let the tool pool the counts.
+
+The pipeline already computes the statewide figure and ships it as a pseudo-agency, **\`missouri-all-agencies\`** ("Missouri (all agencies)"), every filing added together. Routes to it:
+
+- \`agency_summary(agency_id="missouri-all-agencies")\` — statewide counts and rates by race over the window.
+- \`disparity()\` with no \`agency_slug\` — the statewide outcome test.
+- \`top_n_by\`, \`distribution\`, and \`compare\` return a \`statewide_reference\` block: the rollup's value for the same metric and window. That is the number to quote as "statewide". The \`median\` / \`mean\` in those responses describe the typical *agency*, and \`compare\`'s median row says so.
+- \`query_metric(agency_slug="missouri-all-agencies", ...)\` — raw statewide rows for any canonical key. (Without an explicit slug the rollup is filtered out of \`query_metric\` results.)
+
+Things the rollup deliberately does **not** have: a disparity index (the pipeline's rollup row is a sum of ~500 per-agency ratios, which is not a ratio; the MCP drops it), and per-capita / population-denominator metrics (jurisdictions overlap — city + county + MSHP — so there is no clean statewide population denominator for stops). It is excluded from rankings, medians, and distributions by default because it is not a peer of any department.
+
 ### On ranking (raw or derived)
 
 Every ranking response from this server includes a \`ranking_caveat\` field. Read it before quoting an order. Briefly: a #1 or top-5 rank can be a small-denominator artifact (one weird year at a small agency), or it can be dominated by raw size (MSHP files ~10× the count of any municipality and will always lead total_stops). Treat rankings as **orientation, not as the story**: look at a range of the top 10–20 agencies, compare to the per-year stops_total_year column for size context, and don't put much stock in relative order *within* the top tier.
