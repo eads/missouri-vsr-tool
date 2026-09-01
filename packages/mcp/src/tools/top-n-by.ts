@@ -11,6 +11,7 @@ import {
   buildLowVolumeSummary,
   flagsFor,
 } from "./caveats.js";
+import { diagnoseEmptyResult } from "./empty-result.js";
 import { findIssuesFor } from "./known-issues.js";
 import { errorResult, inputSchemaFromZod, registerTool, textResult } from "./registry.js";
 
@@ -49,6 +50,12 @@ export interface MetricSpec {
   secondarySample?: string;
   /** Optional race filter — for share metrics where the race is fixed. */
   raceColumn?: RaceColumn;
+  /**
+   * Canonical keys this metric's SQL actually reads. Used to explain an empty
+   * result: if none of these have rows in the requested window, the caller
+   * needs a different year_range, not a lower threshold (#221).
+   */
+  coverageKeys: string[];
 }
 
 const buildStandard = (
@@ -71,6 +78,7 @@ WITH agg AS (
 
 export const METRICS: Record<string, MetricSpec> = {
   search_rate: {
+    coverageKeys: ["searches", "stops"],
     description:
       "Searches per 100 stops: 100 * SUM(searches) / SUM(stops). Typically 0–100, but CAN exceed 100 because a single stop can produce multiple search events. NOT a percentage of stops — it's a rate per 100.",
     sampleField: "denominator",
@@ -82,6 +90,7 @@ export const METRICS: Record<string, MetricSpec> = {
     secondarySample: "numerator",
   },
   contraband_hit_rate: {
+    coverageKeys: ["contraband-total", "searches"],
     description:
       "Contraband finds per 100 searches: 100 * SUM(contraband-total) / SUM(searches). Typically 0–100; can exceed 100 if a single search recovered multiple distinct contraband categories that were each counted. Not a percentage.",
     sampleField: "denominator",
@@ -93,6 +102,7 @@ export const METRICS: Record<string, MetricSpec> = {
     secondarySample: "numerator",
   },
   citation_rate: {
+    coverageKeys: ["citations", "stops"],
     description:
       "Citations per 100 stops: 100 * SUM(citations) / SUM(stops). REGULARLY EXCEEDS 100 because a single traffic stop can produce multiple citations (speeding + no seatbelt + expired tags). NOT a percentage of stops — when you chart this, do not cap the axis at 100 and do not call it 'percent.'",
     sampleField: "denominator",
@@ -104,6 +114,7 @@ export const METRICS: Record<string, MetricSpec> = {
     secondarySample: "numerator",
   },
   arrest_rate: {
+    coverageKeys: ["arrests", "stops"],
     description:
       "Arrests per 100 stops: 100 * SUM(arrests) / SUM(stops). Typically 0–100; can exceed 100 if multiple arrests per stop are filed (e.g. driver + passenger). NOT a percentage.",
     sampleField: "denominator",
@@ -115,6 +126,7 @@ export const METRICS: Record<string, MetricSpec> = {
     secondarySample: "numerator",
   },
   search_rate_minus_hit_rate: {
+    coverageKeys: ["stops", "searches", "contraband-total"],
     description:
       "Search rate minus contraband hit rate, both as rate-per-100. Difference is in 'percentage point' units only loosely — the underlying rates can exceed 100. A single-number proxy for the outcome test: higher values mean searches are surfacing contraband less often relative to how often they happen.",
     sampleField: "stops_n",
@@ -139,6 +151,7 @@ WITH agg AS (
     secondarySample: "searches_n",
   },
   hispanic_stop_share: {
+    coverageKeys: ["stops"],
     description:
       "Share of stops where the recorded race was Hispanic, as a percentage 0–100 (truly capped at 100 — it's part of a whole, unlike citation_rate / search_rate which are rates-per-100 and can exceed 100). 100 * SUM(stops.Hispanic) / SUM(stops.Total).",
     sampleField: "denominator",
@@ -150,6 +163,7 @@ WITH agg AS (
     raceColumn: "hispanic",
   },
   black_stop_share: {
+    coverageKeys: ["stops"],
     description:
       "Share of stops where the recorded race was Black, as a percentage 0–100 (truly capped at 100 — part of a whole). 100 * SUM(stops.Black) / SUM(stops.Total).",
     sampleField: "denominator",
@@ -161,6 +175,7 @@ WITH agg AS (
     raceColumn: "black",
   },
   disparity_index_all_stops: {
+    coverageKeys: ["disparity-index--all-stops", "stops"],
     description:
       "Most-recent-year value of the canonical 'disparity-index--all-stops' metric (white-non-Hispanic baseline; 1.0 = parity). Uses the agency's most recent year in the window. SPARSE: this is the STATE-PUBLISHED index, which ends in 2021 — the default [latest, latest] window returns nothing; pass year_range=[2021, 2021] (or [2020, 2021]) to get it. Population-based reconstructions for 2022 and 2025 live under 'disparity-index--all-stops-acs' / '-dec' via query_metric; label their provenance if you use them. Never available for the statewide rollup.",
     sampleField: "stops_n",
@@ -191,6 +206,7 @@ agg AS (
     secondarySample: "year",
   },
   total_stops: {
+    coverageKeys: ["stops"],
     description: "Total stops summed across the window. The simplest 'who stops the most' metric.",
     sampleField: "value",
     defaultMinSample: 0,
@@ -208,6 +224,7 @@ WITH agg AS (
     valueExpr: "value",
   },
   resident_stop_share: {
+    coverageKeys: ["resident-stops", "stops"],
     description:
       "Share of stops that were of jurisdiction residents (vs. non-residents), as a percentage 0–100 (truly capped at 100 — part of a whole). 100 * SUM(resident-stops) / SUM(stops). A LOW share means an agency is stopping mostly non-residents — typical of highway / through-traffic enforcement; flag for revenue-from-outsiders patterns. Only post-2020 reporting forms include the resident/non-resident split.",
     sampleField: "denominator",
@@ -467,6 +484,19 @@ const topNByHandler = async (raw: unknown) => {
     })),
   );
 
+  // An unexplained `results: []` reads as "no agency has this metric". Say
+  // which it is — a coverage gap or a threshold problem — since they want
+  // opposite fixes from the caller (#221).
+  const emptyResultReason =
+    data.length === 0
+      ? await diagnoseEmptyResult(spec.coverageKeys, [start, end], {
+          min_sample_size: minSample,
+          min_total_stops: minTotalStops,
+          county: args.county ?? null,
+          agency_type: args.agency_type ?? null,
+        })
+      : null;
+
   const payload = {
     metric: metricKey,
     direction: args.ascending ? "ascending" : "descending",
@@ -486,7 +516,14 @@ const topNByHandler = async (raw: unknown) => {
     min_total_stops: minTotalStops,
     max_total_stops: maxTotalStops ?? null,
     method: spec.method,
-    method_explainer: metricExplainer(metricKey),
+    // Don't let the "1.0 = parity" style explainer stand as the only prose
+    // attached to a zero-row response — it explains how to read values that
+    // aren't there.
+    method_explainer:
+      emptyResultReason === null
+        ? metricExplainer(metricKey)
+        : `NO ROWS MATCHED — read empty_result_reason first; the following describes the metric in general, not this (empty) result. ${metricExplainer(metricKey)}`,
+    empty_result_reason: emptyResultReason,
     filters: {
       county: args.county ?? null,
       agency_type: args.agency_type ?? null,

@@ -176,6 +176,10 @@ const compareHandler = async (raw: unknown) => {
     const m = meta.get(slug);
     const r = lookup.get(slug);
     const issues = findIssuesForAgency(slug, args.metric);
+    // The rollup is every agency added together, so "percent above the median
+    // agency" is arithmetic without a referent — it reads as +174,758% on
+    // total_stops. Suppress it rather than let it be quoted (#221).
+    const isRollup = slug === STATEWIDE_ROLLUP_SLUG;
     return {
       agency_slug: slug,
       canonical_name: m?.canonical_name ?? slug,
@@ -184,9 +188,16 @@ const compareHandler = async (raw: unknown) => {
       value: r?.value ?? null,
       sample_size: r?.sample_size ?? 0,
       pct_diff_vs_statewide_median:
-        r?.value !== null && r?.value !== undefined && median !== null && median !== 0
+        !isRollup && r?.value !== null && r?.value !== undefined && median !== null && median !== 0
           ? ((r.value - median) / median) * 100
           : null,
+      ...(isRollup
+        ? {
+            statewide_rollup: true,
+            comparison_note:
+              "This row is the STATEWIDE AGGREGATE across every reporting agency, not a department. It is excluded from the statewide_median pool and pct_diff_vs_statewide_median is deliberately null — comparing the sum of all agencies to the median single agency is not a meaningful ratio. Use it as the statewide total/rate, not as a peer in the ranking.",
+          }
+        : {}),
       ...(issues.length > 0 ? { known_data_issues: issues } : {}),
     };
   });
