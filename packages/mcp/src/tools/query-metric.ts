@@ -14,6 +14,7 @@ import {
   MIN_TOTAL_STOPS_DESCRIPTION,
   RANKING_CAVEAT,
   RESEARCH_PROMPT,
+  STATEWIDE_AGGREGATION_RULE,
   buildLowVolumeSummary,
   flagsFor,
 } from "./caveats.js";
@@ -380,7 +381,7 @@ const handler = async (raw: unknown) => {
     },
     interpretation_note:
       meta.type_heuristic === "rate"
-        ? "value is a pre-computed rate on the 0–100 scale. DO NOT sum these across years — average them or quote the per-year values."
+        ? "value is a pre-computed rate on the 0–100 scale for one agency × year. Do NOT sum OR average these across years or across agencies — an unweighted average of rates is not a rate. Quote the per-year values, or get a pooled multi-year / statewide figure from top_n_by, compare, or agency_summary (agency_id='missouri-all-agencies' for Missouri), which recompute SUM/SUM from the counts."
         : meta.type_heuristic === "ratio"
           ? "value is the disparity ratio. 1.0 = parity with the white non-Hispanic baseline."
           : meta.type_heuristic === "population"
@@ -388,13 +389,14 @@ const handler = async (raw: unknown) => {
             : "value is a raw count for that agency × year. Sum-able across years if the question warrants.",
     method_explainer:
       meta.type_heuristic === "rate"
-        ? `Plain English (surface BEFORE the numbers): this is the pre-computed rate the Missouri AG published for each agency × year for the metric ${args.canonical_key} — already a number per 100, not a percentage. Can legitimately exceed 100 because a single stop can produce multiple events. NEVER sum these across years; if you want a multi-year value, average them or report the per-year series. Counts in stops_total_year give you the sample size context. Further reading: call read_methodology() for the rate-vs-percentage distinction.`
+        ? `Plain English (surface BEFORE the numbers): this is the pre-computed rate the Missouri AG published for each agency × year for the metric ${args.canonical_key} — already a number per 100, not a percentage. Can legitimately exceed 100 because a single stop can produce multiple events. NEVER sum or average these across years or across agencies — an unweighted average of rates is not a rate, and it is not Missouri's rate. Report the per-year series, or for a pooled multi-year or statewide figure use top_n_by / compare / agency_summary (agency_id='missouri-all-agencies' for Missouri), which recompute SUM/SUM from the counts. Counts in stops_total_year give you the sample size context. Further reading: call read_methodology() for the rate-vs-percentage distinction.`
         : meta.type_heuristic === "ratio"
           ? `Plain English (surface BEFORE the numbers): this is a disparity ratio — minority group's per-capita stop rate divided by the white non-Hispanic per-capita stop rate. 1.0 = parity, 2.0 = stopped at twice the per-resident rate, below 1.0 = stopped at a lower rate than white. Strong caveat: stops-over-population framing is politically contested (omits through-traffic and commuter patterns); statewide rolls can flip sign once broken out by agency. Always report at the agency-year level alongside any aggregate. Further reading: https://en.wikipedia.org/wiki/Simpson%27s_paradox (why aggregates can flip sign); call read_methodology() for the full caveats.`
           : meta.type_heuristic === "population"
             ? `Plain English (surface BEFORE the numbers): this is a population denominator (ACS 5-year estimate or decennial), NOT a stop count. Use it to anchor per-capita comparisons — but don't mix it with stops data without explaining the difference (ACS race is self-reported, stops race is officer-perceived). Further reading: https://www.census.gov/programs-surveys/acs (background on the ACS).`
             : `Plain English (surface BEFORE the numbers): this is the raw count for ${args.canonical_key} for each agency × year, exactly as the agency filed it. Sum-able across years if the question warrants — but for downstream rates, prefer the curated metrics (top_n_by, agency_summary) which compute denominators the same way the pipeline does. Each row carries stops_total_year as a size-context column. Further reading: call read_methodology() if the metric's definition is unclear.`,
     low_volume_warning_summary: lowVolumeSummary,
+    aggregation_rule: STATEWIDE_AGGREGATION_RULE,
     ranking_caveat: RANKING_CAVEAT,
     further_research_prompt: RESEARCH_PROMPT,
     sample_size_companion:

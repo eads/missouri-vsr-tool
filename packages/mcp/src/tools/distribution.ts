@@ -7,6 +7,7 @@ import {
   DEFAULT_MIN_TOTAL_STOPS,
   MIN_TOTAL_STOPS_DESCRIPTION,
   RESEARCH_PROMPT,
+  STATEWIDE_AGGREGATION_RULE,
   buildLowVolumeSummary,
   flagsFor,
 } from "./caveats.js";
@@ -18,7 +19,7 @@ import {
   registerTool,
   textResult,
 } from "./registry.js";
-import { METRICS } from "./top-n-by.js";
+import { METRICS, statewideReference } from "./top-n-by.js";
 
 const METRIC_KEYS = Object.keys(METRICS) as [
   keyof typeof METRICS,
@@ -324,6 +325,7 @@ const distributionHandler = async (raw: unknown) => {
   const hist = buildHistogram(values, binCount);
 
   const lowVolumeSummary = buildLowVolumeSummary(rows);
+  const statewide = await statewideReference(spec, start, end);
 
   const payload = {
     metric: args.metric,
@@ -352,8 +354,10 @@ const distributionHandler = async (raw: unknown) => {
     n_agencies: rows.length,
     method: spec.method,
     method_explainer:
-      "Plain English (surface this BEFORE the numbers): we computed this metric for every eligible agency in the window, then summarized the SHAPE of those values across agencies. 'Median' is the middle agency (half above, half below). 'P25' is the bottom-quarter cut line, 'P75' the top-quarter line — between them sits the middle half of agencies. 'P90' and 'P95' mark where the high outliers begin. The 'histogram' bins agencies by their value and counts how many fall in each bin — useful for whether values cluster around one number or spread wide. Caveat for rate metrics: values are per 100 stops, not percentages, and can legitimately exceed 100. Further reading: https://en.wikipedia.org/wiki/Quantile (what p25 / median / p75 mean); call read_methodology() for the metric definition.",
+      "Plain English (surface this BEFORE the numbers): we computed this metric for every eligible agency in the window, then summarized the SHAPE of those values across agencies. 'Median' is the middle agency (half above, half below). 'P25' is the bottom-quarter cut line, 'P75' the top-quarter line — between them sits the middle half of agencies. 'P90' and 'P95' mark where the high outliers begin. 'Mean' is the UNWEIGHTED average of the agency values — the typical agency, NOT Missouri's rate; the statewide figure is in statewide_reference. The 'histogram' bins agencies by their value and counts how many fall in each bin — useful for whether values cluster around one number or spread wide. Caveat for rate metrics: values are per 100 stops, not percentages, and can legitimately exceed 100. Further reading: https://en.wikipedia.org/wiki/Quantile (what p25 / median / p75 mean); call read_methodology() for the metric definition.",
     summary,
+    statewide_reference: statewide,
+    aggregation_rule: STATEWIDE_AGGREGATION_RULE,
     histogram: hist,
     low_volume_warning_summary: lowVolumeSummary,
     values: includeValues ? rows : null,
@@ -367,7 +371,7 @@ const metricList = Object.keys(METRICS).join(", ");
 
 registerTool({
   name: "distribution",
-  description: `Returns the across-agency distribution of a single metric over a year window, with the same sample-size guards as top_n_by. Output includes summary stats (min, p25, median, mean, p75, p90, p95, max, stdev), a binned histogram (configurable bin count, default 20), and the per-agency rows sorted ascending. Use this whenever you want to describe the shape of a metric across agencies, draw a histogram, or pick out outliers — instead of paging through one-by-one calls. Available metrics: ${metricList}. Filters: year_range, county, agency_type, min_sample_size, bins.`,
+  description: `Returns the across-agency distribution of a single metric over a year window, with the same sample-size guards as top_n_by. Output includes summary stats (min, p25, median, mean, p75, p90, p95, max, stdev — all across-agency, unweighted), the pooled statewide value from the rollup in statewide_reference, a binned histogram (configurable bin count, default 20), and the per-agency rows sorted ascending. Use this whenever you want to describe the shape of a metric across agencies, draw a histogram, or pick out outliers — instead of paging through one-by-one calls. Available metrics: ${metricList}. Filters: year_range, county, agency_type, min_sample_size, bins.`,
   inputSchema: inputSchemaFromZod(DistributionInput),
   handler: distributionHandler,
 });
