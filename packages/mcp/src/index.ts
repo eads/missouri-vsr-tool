@@ -27,6 +27,39 @@ export const handler = async (
   }
 
   if (method === "GET") {
+    // Only the root answers. Previously every GET path returned this 200
+    // JSON blurb — including /.well-known/oauth-protected-resource and
+    // /.well-known/oauth-authorization-server. MCP clients that probe OAuth
+    // discovery eagerly (Claude Desktop's custom-connector flow does; claude.ai
+    // web only probes after a 401) saw a 200 with no `authorization_servers`
+    // and refused to connect with "auth details missing". This server has no
+    // auth: discovery URLs must 404 so clients fall through to anonymous (#219).
+    const path = (event.rawPath ?? "/").replace(/\/+$/, "") || "/";
+    if (path !== "/") {
+      return {
+        statusCode: 404,
+        headers: JSON_HEADERS,
+        body: JSON.stringify({
+          error: "Not found",
+          notes:
+            "This MCP server has no authentication and exposes a single endpoint at /. Send MCP JSON-RPC requests as POST to /.",
+        }),
+      };
+    }
+    // Streamable HTTP lets clients open a server→client SSE stream with
+    // GET + Accept: text/event-stream. We don't implement one; the spec says
+    // to answer 405 rather than return a non-SSE body.
+    const accept = (event.headers?.accept ?? event.headers?.Accept ?? "").toLowerCase();
+    if (accept.includes("text/event-stream")) {
+      return {
+        statusCode: 405,
+        headers: { ...JSON_HEADERS, allow: "POST, OPTIONS" },
+        body: JSON.stringify({
+          error: "Method not allowed",
+          notes: "Server-initiated SSE streams are not implemented. POST JSON-RPC requests to /.",
+        }),
+      };
+    }
     return {
       statusCode: 200,
       headers: JSON_HEADERS,
@@ -34,6 +67,7 @@ export const handler = async (
         name: SERVER_NAME,
         version: SERVER_VERSION,
         transport: "streamable-http",
+        auth: "none",
         status: "provisional",
         disclaimer:
           "This MCP server is provisional and offered as-is. No warranty, no uptime guarantee, tool surfaces may change without notice. Always verify model output against the published Missouri Vehicle Stops Report data before publishing.",

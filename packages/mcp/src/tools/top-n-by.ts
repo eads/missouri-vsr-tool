@@ -162,7 +162,7 @@ WITH agg AS (
   },
   disparity_index_all_stops: {
     description:
-      "Most-recent-year value of the canonical 'disparity-index--all-stops' metric (white-non-Hispanic baseline; 1.0 = parity). Uses the agency's most recent year in the window.",
+      "Most-recent-year value of the canonical 'disparity-index--all-stops' metric (white-non-Hispanic baseline; 1.0 = parity). Uses the agency's most recent year in the window. SPARSE: this is the STATE-PUBLISHED index, which ends in 2021 — the default [latest, latest] window returns nothing; pass year_range=[2021, 2021] (or [2020, 2021]) to get it. Population-based reconstructions for 2022 and 2025 live under 'disparity-index--all-stops-acs' / '-dec' via query_metric; label their provenance if you use them. Never available for the statewide rollup.",
     sampleField: "stops_n",
     defaultMinSample: 500,
     method:

@@ -34,7 +34,7 @@ Every tool returns sample sizes alongside its numeric outputs, and refuses to co
 
 ## Snapshot tools default to most-recent year
 
-\`top_n_by\`, \`distribution\`, and \`compare\` all default to the **single most recent year** with data (currently 2024). Questions like "which agency has the highest citation rate?" return the current snapshot, not a pooled 5-year average. For trend or stability framings ("highest over the last 5 years," "consistently high"), expand explicitly via \`year_range\` — e.g. \`[2020, 2024]\` for the 5-year pool, \`[2023, 2023]\` for a different single year. Each response carries a \`year_range_basis\` field surfacing what was used and how to widen it.
+\`top_n_by\`, \`distribution\`, and \`compare\` all default to the **single most recent year** with data in the loaded release (2025 as of data release v2.2; each response's \`year_range_basis\` names it). Questions like "which agency has the highest citation rate?" return the current snapshot, not a pooled 5-year average. For trend or stability framings ("highest over the last 5 years," "consistently high"), expand explicitly via \`year_range\` — e.g. \`[2021, 2025]\` for the 5-year pool, \`[2023, 2023]\` for a different single year. Each response carries a \`year_range_basis\` field surfacing what was used and how to widen it.
 
 The \`trend\` tool intrinsically uses a multi-year window for OLS; \`query_metric\` (raw values) defaults to the metric's full coverage range so the time series is visible. Don't try to make those single-year.
 

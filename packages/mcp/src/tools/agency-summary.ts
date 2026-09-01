@@ -1,8 +1,13 @@
 import { z } from "zod";
 
-import { getDb, getProgram287gSnapshot, STATEWIDE_ROLLUP_SLUG } from "../db.js";
+import {
+  getDb,
+  getLatestYearWithData,
+  getProgram287gSnapshot,
+  STATEWIDE_ROLLUP_SLUG,
+} from "../db.js";
 import { normalize } from "../duckutil.js";
-import { PROBLEMATIC_YEAR_FLOOR, yearRangeWarnings } from "../year-range.js";
+import { defaultWindow, yearRangeWarnings } from "../year-range.js";
 import { RESEARCH_PROMPT } from "./caveats.js";
 import { findIssuesForAgency } from "./known-issues.js";
 import { errorResult, inputSchemaFromZod, registerTool, textResult } from "./registry.js";
@@ -25,7 +30,7 @@ const AgencySummaryInput = z.object({
     .string()
     .min(1)
     .describe(
-      "The agency_slug from list_agencies (e.g. 'missouri-state-hwy-patrol'). Always resolve loose names through list_agencies first. For STATEWIDE totals/rates, pass 'missouri-all-agencies' — the pre-computed aggregate across all agencies — instead of summing agencies yourself.",
+      "The agency_slug from list_agencies (e.g. 'missouri-state-highway-patrol' or 'st-louis-city-police-dept'). Always resolve loose names through list_agencies first. For STATEWIDE totals/rates, pass 'missouri-all-agencies' — the pre-computed aggregate across all agencies — instead of summing agencies yourself.",
     ),
   year_range: z
     .tuple([z.number().int(), z.number().int()])
@@ -66,29 +71,22 @@ const agencySummaryHandler = async (raw: unknown) => {
     agencyMeta[col] = normalize(agencyRows[0][i]);
   });
 
-  const yearsWithData = Array.isArray(agencyMeta.years_with_data)
-    ? (agencyMeta.years_with_data as number[])
-    : [];
-  const latestYear = Number(agencyMeta.latest_year_with_data);
+  // Most recent year this agency filed. db.ts backfills the field from the
+  // stops table when the pipeline leaves it null (the statewide rollup ships
+  // with latest_year_with_data: null), but guard anyway: `Number(null)` is 0,
+  // which is finite, and a [2021, 0] window silently returns nothing (#219).
+  const latestYear = (() => {
+    const raw = agencyMeta.latest_year_with_data;
+    const n = typeof raw === "number" ? raw : Number(raw);
+    return raw !== null && raw !== undefined && Number.isFinite(n) && n > 0
+      ? n
+      : null;
+  })();
 
-  const [startYear, endYear] = (() => {
+  const [startYear, endYear] = await (async () => {
     if (args.year_range) return args.year_range;
-    if (Number.isFinite(latestYear)) {
-      // Default to four most recent years; floor start at PROBLEMATIC_YEAR_FLOOR (2021).
-      return [
-        Math.max(PROBLEMATIC_YEAR_FLOOR, latestYear - 3),
-        latestYear,
-      ] as [number, number];
-    }
-    if (yearsWithData.length) {
-      const sorted = [...yearsWithData].sort((a, b) => a - b);
-      const proposedStart = sorted[sorted.length - 4] ?? sorted[0];
-      return [
-        Math.max(PROBLEMATIC_YEAR_FLOOR, proposedStart),
-        sorted[sorted.length - 1],
-      ] as [number, number];
-    }
-    return [PROBLEMATIC_YEAR_FLOOR, 2024] as [number, number];
+    const end = latestYear ?? (await getLatestYearWithData());
+    return defaultWindow(end, 4);
   })();
 
   const sql = `
@@ -120,6 +118,27 @@ const agencySummaryHandler = async (raw: unknown) => {
     (a, b) => b - a,
   );
 
+  const isStatewideRollup = args.agency_id === STATEWIDE_ROLLUP_SLUG;
+
+  // Only advertise the metrics that actually came back. The disparity index
+  // in particular is sparse: the state published it through 2021 under this
+  // key and the MCP drops it entirely for the statewide rollup (see db.ts),
+  // so a fixed SUMMARY_METRICS list was promising columns that weren't in
+  // `data` (#219).
+  const metricsPresent = new Set(data.map((d) => String(d.metric)));
+  const metricsReturned = SUMMARY_METRICS.filter((m) => metricsPresent.has(m));
+  const metricsUnavailable = SUMMARY_METRICS.filter((m) => !metricsPresent.has(m)).map(
+    (metric) => ({
+      metric,
+      reason:
+        metric === "disparity-index--all-stops"
+          ? isStatewideRollup
+            ? "No statewide disparity index. The pipeline's rollup row for this metric is the SUM of every agency's per-agency ratio (not a rate, not a ratio), so the MCP drops it. Per-capita stop rates aren't meaningful for an all-agencies aggregate anyway: jurisdictions overlap (city + county + highway patrol) and non-resident/through traffic has no population denominator."
+            : `No state-published disparity index for this agency in ${startYear}–${endYear}. The state published 'disparity-index--all-stops' only through 2021; it requires a jurisdiction population baseline, so state-level agencies (MSHP, park rangers) never have one. Population-based reconstructions exist for 2022 and 2025 under 'disparity-index--all-stops-acs' / '-dec' via query_metric — label their provenance if you use them.`
+          : `No '${metric}' rows on file for this agency in ${startYear}–${endYear}.`,
+    }),
+  );
+
   const agencyIssues = findIssuesForAgency(args.agency_id);
 
   // 287(g) participation block. Only attached when this agency is on
@@ -140,12 +159,10 @@ const agencySummaryHandler = async (raw: unknown) => {
       }
     : null;
 
-  const isStatewideRollup = args.agency_id === STATEWIDE_ROLLUP_SLUG;
-
   const summary = {
     agency: agencyMeta,
     statewide_rollup: isStatewideRollup
-      ? "This is the STATEWIDE AGGREGATE across every reporting agency (the pre-computed 'Missouri (all agencies)' rollup), not a single department. Use these numbers directly for statewide totals/rates instead of summing individual agencies. Per-capita/population-denominator metrics (e.g. resident stop rate) are not meaningful here and may be omitted."
+      ? "This is the STATEWIDE AGGREGATE across every reporting agency (the pre-computed 'Missouri (all agencies)' rollup), not a single department. Use these numbers directly for statewide totals/rates instead of summing individual agencies. Per-capita/population-denominator metrics (resident stop rate, disparity index) are not meaningful for an all-agencies aggregate and are omitted — see metrics_unavailable."
       : null,
     program_287g: program287g,
     known_data_issues: agencyIssues.length > 0 ? agencyIssues : null,
@@ -158,10 +175,11 @@ const agencySummaryHandler = async (raw: unknown) => {
     year_range_observed: observedYears.length
       ? [observedYears[observedYears.length - 1], observedYears[0]]
       : null,
-    metrics_returned: SUMMARY_METRICS,
+    metrics_returned: metricsReturned,
+    metrics_unavailable: metricsUnavailable.length ? metricsUnavailable : null,
     method_explainer:
-      "Plain English (surface this BEFORE the numbers): you're getting four years of this agency's filings — raw counts (stops, searches, contraband, arrests, citations) plus the matching rates and the disparity index — broken out by the driver's officer-perceived race. Rates here are per 100 stops, not percentages: they can exceed 100 because one stop can produce multiple citations / multiple searches / multiple arrests (very common, especially for citations). The disparity-index--all-stops column is a RATIO of per-capita stop rates against the white non-Hispanic baseline; 1.0 = parity, above 1.0 = stopped at a higher per-resident rate. Don't chart any of the rates on a 0–100 axis labeled 'percent of stops' — say 'per 100' or 'per stop'. Further reading: call read_methodology() for the full metric definitions and the rate-vs-percentage distinction.",
-    note: "Counts (stops/searches/contraband-total/arrests/citations) are raw integers. Rates (search-rate/contraband-hit-rate/arrest-rate/citation-rate) are reported as RATES PER 100 — typically 0–100 but **can exceed 100** because a single stop can produce multiple citations / multiple searches / multiple arrests. Do NOT chart these as percentages with a 0–100 axis or call them 'percent of stops' — they're per-100 rates. disparity-index--all-stops is a ratio against the white non-Hispanic baseline (1.0 = parity). For deeper interpretation see read_methodology.",
+      "Plain English (surface this BEFORE the numbers): you're getting four years of this agency's filings — raw counts (stops, searches, contraband, arrests, citations) plus the matching rates and the disparity index — broken out by the driver's officer-perceived race. Rates here are per 100 stops, not percentages: they can exceed 100 because one stop can produce multiple citations / multiple searches / multiple arrests (very common, especially for citations). If present, the disparity-index--all-stops rows are a RATIO of per-capita stop rates against the white non-Hispanic baseline; 1.0 = parity, above 1.0 = stopped at a higher per-resident rate — but the state only published it through 2021, and it never exists for the statewide rollup or state-level agencies (check metrics_unavailable before saying an agency 'has no disparity'). Don't chart any of the rates on a 0–100 axis labeled 'percent of stops' — say 'per 100' or 'per stop'. Further reading: call read_methodology() for the full metric definitions and the rate-vs-percentage distinction.",
+    note: "Counts (stops/searches/contraband-total/arrests/citations) are raw integers. Rates (search-rate/contraband-hit-rate/arrest-rate/citation-rate) are reported as RATES PER 100 — typically 0–100 but **can exceed 100** because a single stop can produce multiple citations / multiple searches / multiple arrests. Do NOT chart these as percentages with a 0–100 axis or call them 'percent of stops' — they're per-100 rates. disparity-index--all-stops, when present, is a ratio against the white non-Hispanic baseline (1.0 = parity); see metrics_unavailable when it is missing. For deeper interpretation see read_methodology.",
     further_research_prompt: RESEARCH_PROMPT,
     data,
   };
@@ -172,7 +190,7 @@ const agencySummaryHandler = async (raw: unknown) => {
 registerTool({
   name: "agency_summary",
   description:
-    "Returns a curated multi-year summary for a single agency: stop counts, search counts, contraband finds, arrest and citation counts, plus their corresponding rates, plus the disparity index — all broken down by race. Defaults to the most recent four years on file (2020 excluded by default due to unreconciled data anomalies — pass year_range explicitly to include it). Use list_agencies first to resolve a natural-language name into an agency_slug. For STATEWIDE figures, pass agency_id='missouri-all-agencies' to read the pre-computed aggregate directly rather than summing every agency.",
+    "Returns a curated multi-year summary for a single agency: stop counts, search counts, contraband finds, arrest and citation counts, plus their corresponding rates, plus the disparity index — all broken down by race. Defaults to the most recent four years on file for that agency (2020 excluded by default due to unreconciled data anomalies — pass year_range explicitly to include it). metrics_returned lists only the metrics actually present in data; metrics_unavailable explains any gaps (the disparity index is sparse: state-published through 2021, never for the statewide rollup). Use list_agencies first to resolve a natural-language name into an agency_slug. For STATEWIDE figures, pass agency_id='missouri-all-agencies' to read the pre-computed aggregate directly rather than summing every agency.",
   inputSchema: inputSchemaFromZod(AgencySummaryInput),
   handler: agencySummaryHandler,
 });
